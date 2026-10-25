@@ -196,5 +196,119 @@ class BridgeTests(unittest.TestCase):
             "answers": {"branch": {"answers": ["main"]}, "tests": {"answers": ["yes"]}}})
 
 
+class CatalogRPC(FakeRPC):
+    def __init__(self, callback):
+        super().__init__(callback)
+        self.owner = callback.__self__
+        self.external_status = "completed"
+
+    def request(self, method, params):
+        if method in {"model/list", "thread/list", "thread/read", "thread/items/list", "thread/turns/list", "thread/resume"}:
+            self.calls.append((method, params))
+            if method == "model/list":
+                name = "model-b" if params.get("cursor") else "model-a"
+                return {"data": [{"model": name, "displayName": name.upper(), "defaultReasoningEffort": "low",
+                    "supportedReasoningEfforts": [{"reasoningEffort": "low", "description": "Fast"},
+                                                   {"reasoningEffort": "high", "description": "Thorough"}]}],
+                        "nextCursor": None if params.get("cursor") else "next-models"}
+            if method == "thread/list":
+                return {"data": [{"id": "cli-history", "cwd": str(self.owner.root / "demo"),
+                    "preview": "An existing CLI session", "updatedAt": 123},
+                    {"id": "outside", "cwd": str(self.owner.root.parent), "preview": "Outside root"}], "nextCursor": "more-threads"}
+            if method == "thread/read":
+                return {"thread": {"id": params["threadId"], "name": "CLI title", "status": {"type": "notLoaded"}}}
+            if method == "thread/turns/list":
+                return {"data": [{"id": "external-turn", "status": self.external_status}], "nextCursor": None}
+            if method == "thread/items/list":
+                if params.get("cursor"):
+                    return {"data": [{"turnId": "older", "item": {"id": "older-message", "type": "agentMessage", "text": "Older reply"}}], "nextCursor": None}
+                return {"data": [{"turnId": "external-turn", "item": {"id": "cli-reply", "type": "agentMessage", "text": "Saved reply"}},
+                                 {"turnId": "external-turn", "item": {"id": "cli-user", "type": "userMessage", "content": [{"type": "text", "text": "Saved prompt"}]}}],
+                        "nextCursor": "older-items"}
+            if method == "thread/resume":
+                return {"model": "model-a", "reasoningEffort": "low"}
+        return super().request(method, params)
+
+
+class CatalogTests(unittest.TestCase):
+    def setUp(self):
+        BridgeTests.setUp(self)
+        self.bridge.store.db.close()
+        self.bridge = Bridge(self.data, self.root, rpc_factory=CatalogRPC)
+
+    tearDown = BridgeTests.tearDown
+    create = BridgeTests.create
+
+    def import_history(self):
+        return self.bridge.dispatch({"action": "catalog"})["result"]
+
+    def test_cli_catalog_filters_outside_projects_and_keeps_pagination(self):
+        result = self.import_history()
+        self.assertEqual(result, {"imported": 1, "skipped": 1, "nextCursor": "more-threads"})
+        self.assertEqual(self.bridge.sessions["cli-history"]["origin"], "codex")
+        self.assertNotIn("outside", self.bridge.sessions)
+        self.assertEqual(self.bridge.snapshot(None)["projects"][0]["id"], str(self.project))
+
+    def test_reading_history_never_resumes_or_starts_a_turn(self):
+        self.import_history()
+        self.bridge.dispatch({"action": "open", "sessionId": "cli-history"})
+        self.assertNotIn("cli-history", self.bridge.loaded)
+        self.assertFalse(any(method in {"thread/resume", "turn/start"} for method, _ in self.bridge.rpc.calls))
+        selected = self.bridge.snapshot("cli-history")["selected"]
+        self.assertEqual([m["id"] for m in selected["messages"]], ["cli-user", "cli-reply"])
+        self.assertTrue(selected["historyTruncated"])
+
+    def test_older_history_page_uses_server_cursor(self):
+        self.import_history()
+        result = self.bridge.dispatch({"action": "historyPage", "sessionId": "cli-history", "cursor": "older-items"})
+        self.assertEqual(result["result"]["messages"][0]["id"], "older-message")
+        self.assertIsNone(result["result"]["nextCursor"])
+
+    def test_live_external_cli_session_is_read_only(self):
+        self.import_history()
+        self.bridge.rpc.external_status = "inProgress"
+        self.bridge.dispatch({"action": "open", "sessionId": "cli-history"})
+        self.assertTrue(self.bridge.sessions["cli-history"]["readOnly"])
+        result = self.bridge.dispatch({"action": "send", "sessionId": "cli-history", "text": "hello", "operationId": "external-running-send"})
+        self.assertFalse(result["ok"])
+        self.assertFalse(any(method == "turn/start" for method, _ in self.bridge.rpc.calls))
+
+    def test_idle_cli_session_resumes_same_thread_without_forcing_model(self):
+        self.import_history()
+        result = self.bridge.dispatch({"action": "send", "sessionId": "cli-history", "text": "continue", "operationId": "external-idle-send"})
+        self.assertTrue(result["ok"])
+        resume = next(params for method, params in self.bridge.rpc.calls if method == "thread/resume")
+        turn = next(params for method, params in self.bridge.rpc.calls if method == "turn/start")
+        self.assertEqual(resume["threadId"], "cli-history")
+        self.assertTrue(resume["excludeTurns"])
+        self.assertNotIn("model", turn)
+        self.assertNotIn("effort", turn)
+
+    def test_model_pagination_and_supported_effort_are_enforced(self):
+        catalog = self.bridge.dispatch({"action": "models"})["result"]["models"]
+        self.assertEqual([m["model"] for m in catalog], ["model-a", "model-b"])
+        result = self.bridge.dispatch({"action": "create", "cwd": str(self.project), "model": "model-b", "effort": "high", "operationId": "model-selected-create"})
+        self.assertTrue(result["ok"])
+        self.assertEqual(next(p for m, p in self.bridge.rpc.calls if m == "thread/start")["model"], "model-b")
+        sent = self.bridge.dispatch({"action": "send", "sessionId": "thread-test", "text": "hello", "model": "model-b", "effort": "high", "operationId": "model-selected-send"})
+        self.assertTrue(sent["ok"])
+        self.assertEqual(next(p for m, p in self.bridge.rpc.calls if m == "turn/start")["effort"], "high")
+        with self.assertRaises(BridgeError):
+            self.bridge.model_settings({"model": "model-b", "effort": "unsupported"})
+        with self.assertRaises(BridgeError):
+            self.bridge.model_settings({"model": "invented-model"})
+
+    def test_empty_project_persists_without_creating_codex_thread(self):
+        result = self.bridge.dispatch({"action": "addProject", "cwd": str(self.project), "operationId": "register-empty-project"})
+        self.assertTrue(result["ok"])
+        self.assertEqual(self.bridge.rpc.calls, [])
+        self.assertEqual(self.bridge.snapshot(None)["projects"], [{"id": str(self.project), "title": "demo"}])
+        restarted = Bridge(self.data, self.root, rpc_factory=CatalogRPC)
+        try:
+            self.assertEqual(restarted.snapshot(None)["projects"][0]["id"], str(self.project))
+        finally:
+            restarted.store.db.close()
+
+
 if __name__ == "__main__":
     unittest.main()

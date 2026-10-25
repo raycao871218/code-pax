@@ -11,6 +11,7 @@ struct HostTrustRequest: Identifiable {
 @MainActor
 final class ConnectionModel: ObservableObject {
     @Published var profile = ServerProfile.load()
+    @Published private(set) var savedServers: [ServerProfile] = []
     @Published var password = ""
     @Published private(set) var isBusy = false
     @Published private(set) var isConnected = false
@@ -22,17 +23,109 @@ final class ConnectionModel: ObservableObject {
     private var client: SSHClient?
     private var monitor: Task<Void, Never>?
     private let trustStore = HostTrustStore()
+    private let passwordStore = PasswordStore()
+    private var connectionGeneration = UUID()
+
+    init() {
+        savedServers = ServerProfile.loadServers()
+        let selectedID = UserDefaults.standard.string(forKey: "selectedServerID")
+        profile = savedServers.first(where: { $0.id == selectedID }) ?? savedServers.first ?? ServerProfile()
+        restorePassword()
+    }
+
+    func restorePassword() {
+        password = ""
+        guard profile.rememberPassword else { return }
+        do { password = try passwordStore.read(profile) ?? "" }
+        catch { errorMessage = error.localizedDescription }
+    }
+
+    private func persistServer(_ target: ServerProfile, secret: String) throws {
+        if let previous = savedServers.first(where: { $0.id == target.id }), previous.credentialAccount != target.credentialAccount {
+            try passwordStore.remove(previous)
+        }
+        if target.rememberPassword, !secret.isEmpty { try passwordStore.save(secret, for: target) }
+        else if !target.rememberPassword { try passwordStore.remove(target) }
+        if let index = savedServers.firstIndex(where: { $0.id == target.id }) { savedServers[index] = target }
+        else { savedServers.append(target) }
+        ServerProfile.saveServers(savedServers, selectedID: target.id)
+    }
+
+    func saveServer() {
+        guard !isBusy else { return }
+        do {
+            let target = try profile.validated()
+            try persistServer(target, secret: password)
+            profile = target
+            errorMessage = nil
+            status = "服务器设置已保存"
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func setRememberPassword(_ remember: Bool) {
+        profile.rememberPassword = remember
+        guard !remember else { return }
+        do {
+            try passwordStore.remove(profile)
+            if var saved = savedServers.first(where: { $0.id == profile.id }) {
+                try passwordStore.remove(saved)
+                saved.rememberPassword = false
+                savedServers[savedServers.firstIndex(where: { $0.id == saved.id })!] = saved
+                ServerProfile.saveServers(savedServers, selectedID: profile.id)
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func selectServer(_ id: String) async {
+        guard !isBusy, let saved = savedServers.first(where: { $0.id == id }) else { return }
+        await disconnect()
+        profile = saved
+        ServerProfile.saveServers(savedServers, selectedID: id)
+        errorMessage = nil
+        serverInfo = ""
+        status = "已选择 \(saved.displayName)"
+        restorePassword()
+    }
+
+    func addServer() async {
+        guard !isBusy else { return }
+        await disconnect()
+        var blank = ServerProfile()
+        blank.name = ""
+        blank.host = ""
+        blank.username = ""
+        profile = blank
+        password = ""
+        serverInfo = ""
+        errorMessage = nil
+        status = "填写新服务器后保存或连接"
+    }
+
+    func deleteServer() async {
+        guard !isBusy else { return }
+        await disconnect()
+        do {
+            if let saved = savedServers.first(where: { $0.id == profile.id }) { try passwordStore.remove(saved) }
+            savedServers.removeAll(where: { $0.id == profile.id })
+            ServerProfile.saveServers(savedServers, selectedID: savedServers.first?.id ?? "")
+            if let first = savedServers.first { profile = first; restorePassword() }
+            else { await addServer() }
+            status = "已删除服务器及保存的密码"
+        } catch { errorMessage = error.localizedDescription }
+    }
 
     func runCommand(_ command: String, limit: Int = 2_097_152) async throws -> String {
         guard isConnected, let client, client.isConnected else {
             throw ConnectionError.message("SSH 已断开，请重新连接服务器。")
         }
+        let generation = connectionGeneration
         let watchdog = Task {
             do { try await Task.sleep(for: .seconds(45)) } catch { return }
             try? await client.close()
         }
         defer { watchdog.cancel() }
         let output = try await client.executeCommand("bash -lc " + RemoteShell.quote(command), maxResponseSize: limit)
+        guard generation == connectionGeneration else { throw ConnectionError.message("服务器连接已切换，请在当前服务器重新操作。") }
         return String(decoding: output.readableBytesView, as: UTF8.self)
     }
 
@@ -68,9 +161,9 @@ final class ConnectionModel: ObservableObject {
         serverInfo = ""
         do {
             let target = try profile.validated()
+            if password.isEmpty, target.rememberPassword { password = try passwordStore.read(target) ?? "" }
             guard !password.isEmpty else { throw ConnectionError.message("请输入 SSH 密码。") }
             profile = target
-            profile.save()
             let expected = try trustStore.fingerprint(for: target.endpoint)
             let validator = PinnedHostValidator(expected: expected)
             let username = target.username
@@ -104,6 +197,7 @@ final class ConnectionModel: ObservableObject {
                     throw ConnectionError.message("读取服务器信息超时或连接已断开，请重试。")
                 }
                 serverInfo = String(decoding: output.readableBytesView, as: UTF8.self)
+                try persistServer(target, secret: secret)
                 isConnected = true
                 status = "已连接 · \(username)@\(target.host):\(target.portNumber!)"
                 password = ""
@@ -158,6 +252,7 @@ final class ConnectionModel: ObservableObject {
     }
 
     private func closeClient() async {
+        connectionGeneration = UUID()
         monitor?.cancel()
         monitor = nil
         let oldClient = client

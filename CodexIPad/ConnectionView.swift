@@ -3,6 +3,7 @@ import SwiftUI
 struct ConnectionView: View {
     @ObservedObject var model: ConnectionModel
     @State private var showForgetConfirmation = false
+    @State private var showDeleteServer = false
 
     var body: some View {
         NavigationStack {
@@ -38,6 +39,12 @@ struct ConnectionView: View {
         } message: {
             Text("只在已核实服务器更换或重新安装时使用。下次连接会再次要求确认身份。")
         }
+        .confirmationDialog("删除这台服务器？", isPresented: $showDeleteServer, titleVisibility: .visible) {
+            Button("删除服务器及保存的密码", role: .destructive) { Task { await model.deleteServer() } }
+        } message: { Text("只删除 iPad 上的连接设置和钥匙串密码，不删除服务器上的项目或会话。") }
+        .onChange(of: model.profile.credentialAccount) { _, _ in
+            if !model.isBusy, !model.isConnected, model.trustRequest == nil { model.restorePassword() }
+        }
     }
 
     private var header: some View {
@@ -54,6 +61,24 @@ struct ConnectionView: View {
 
     private var connectionForm: some View {
         VStack(alignment: .leading, spacing: 18) {
+            Picker("已保存的服务器", selection: Binding(get: { model.profile.id }, set: { id in
+                Task { await model.selectServer(id) }
+            })) {
+                if !model.savedServers.contains(where: { $0.id == model.profile.id }) {
+                    Text("未保存的服务器").tag(model.profile.id)
+                }
+                ForEach(model.savedServers) { server in
+                    Text("\(server.displayName) · \(server.host)").tag(server.id)
+                }
+            }.disabled(model.isBusy)
+            HStack {
+                Button("添加服务器", systemImage: "plus") { Task { await model.addServer() } }
+                Spacer()
+                if model.savedServers.contains(where: { $0.id == model.profile.id }) {
+                    Button("删除", role: .destructive) { showDeleteServer = true }
+                }
+            }.disabled(model.isBusy)
+            field("服务器名称") { TextField("例如：开发服务器 / NAS", text: $model.profile.name) }
             field("服务器地址") {
                 TextField("IP 或主机名", text: $model.profile.host)
                     .keyboardType(.URL)
@@ -71,13 +96,17 @@ struct ConnectionView: View {
                 .frame(width: 100)
             }
             field("SSH 密码") {
-                SecureField("密码仅保留在本次运行的内存中", text: $model.password)
+                SecureField("SSH 密码", text: $model.password)
                     .textContentType(.password)
                     .onSubmit { Task { await model.connect() } }
             }
-            Text("地址和用户名会记住，密码不会保存到磁盘。")
+            Toggle("记住这台服务器的密码", isOn: Binding(get: { model.profile.rememberPassword }, set: model.setRememberPassword))
+                .disabled(model.isBusy || model.isConnected)
+            Text(model.profile.rememberPassword ? "密码保存到本机钥匙串，不写入连接配置，也不通过 iCloud 同步。" : "密码只保留在内存中，不保存到设备存储。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Button("保存服务器设置") { model.saveServer() }
+                .disabled(model.isBusy || model.isConnected)
             Button {
                 Task {
                     if model.isConnected { await model.disconnect() }

@@ -55,6 +55,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "281802A1113621ECCE021D70";
 		};
+		"E0FDF51F3C98B5374294991A" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "PasswordStore.swift";
+			"sourceTree" = "<group>";
+		};
+		"4FDBE26FB3D52C0024030C07" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E0FDF51F3C98B5374294991A";
+		};
 		"B0E761D36C8A2DDCBB3A11FA" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -192,6 +202,7 @@
 				"73097532074DC08CEB06848E",
 				"473E88A206061E063DD7AAAE",
 				"281802A1113621ECCE021D70",
+				"E0FDF51F3C98B5374294991A",
 				"B0E761D36C8A2DDCBB3A11FA",
 				"F7BB561F6168F5DA392CC3B7",
 				"5D7F05CC38FDBBA02A03F66E",
@@ -281,8 +292,8 @@
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "2";
-				"MARKETING_VERSION" = "0.2.0";
+				"CURRENT_PROJECT_VERSION" = "3";
+				"MARKETING_VERSION" = "0.3.0";
 				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks";
 			};
 		};
@@ -298,8 +309,8 @@
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "2";
-				"MARKETING_VERSION" = "0.2.0";
+				"CURRENT_PROJECT_VERSION" = "3";
+				"MARKETING_VERSION" = "0.3.0";
 				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks";
 			};
 		};
@@ -358,6 +369,7 @@
 				"4ADFDFFF44383178499644D8",
 				"7BF45F86754FC2D915354B16",
 				"D3B97ED78F2E25B7468E9941",
+				"4FDBE26FB3D52C0024030C07",
 				"F62D998D58E5F4E14278AD79",
 				"55E316644D65F19FA0281BDA",
 				"935453F433F2B6655843A15C",

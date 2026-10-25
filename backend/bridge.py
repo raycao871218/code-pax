@@ -17,7 +17,7 @@ import threading
 import time
 import uuid
 
-PROTOCOL = 1
+PROTOCOL = 2
 MAX_WIRE = 2 * 1024 * 1024
 MAX_TEXT = 12000
 ACTIVE = {"inProgress", "waiting", "starting"}
@@ -40,11 +40,20 @@ class Store:
         self.db.executescript("""
           CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, value TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY, digest TEXT NOT NULL, value TEXT);
+          CREATE TABLE IF NOT EXISTS projects(path TEXT PRIMARY KEY, title TEXT NOT NULL);
         """)
         self.db.commit()
 
     def load(self):
         return {key: json.loads(value) for key, value in self.db.execute("SELECT id,value FROM sessions")}
+
+    def load_projects(self):
+        return {path: title for path, title in self.db.execute("SELECT path,title FROM projects")}
+
+    def save_project(self, path, title):
+        with self.lock:
+            self.db.execute("INSERT OR REPLACE INTO projects VALUES (?,?)", (path, title))
+            self.db.commit()
 
     def save(self, session):
         with self.lock:
@@ -90,7 +99,7 @@ class AppServer:
                                         stderr=sys.stderr, text=True, bufsize=1)
         threading.Thread(target=self.read, daemon=True).start()
         try:
-            self.request("initialize", {"clientInfo": {"name": "codex_ipad", "title": "Codex iPad", "version": "0.2.0"},
+            self.request("initialize", {"clientInfo": {"name": "codex_ipad", "title": "Codex iPad", "version": "0.3.0"},
                                         "capabilities": {"experimentalApi": True}})
             self.write({"method": "initialized", "params": {}})
             self.ready = True
@@ -153,6 +162,9 @@ class Bridge:
         self.lock = threading.RLock()
         self.mutations = threading.Lock()
         self.sessions = self.store.load()
+        self.projects = self.store.load_projects()
+        self.model_catalog = []
+        self.models_updated_at = 0
         self.loaded = set()
         self.stopping = False
         self.epoch = uuid.uuid4().hex
@@ -186,21 +198,160 @@ class Bridge:
         login = subprocess.run([shutil.which("codex") or "codex", "login", "status"],
                                capture_output=True, timeout=10)
         return {"protocol": PROTOCOL, "ready": self.rpc.ready,
+                "version": "0.3.0",
                 "root": str(self.root), "authenticated": login.returncode == 0,
                 "accountType": "服务器已有登录" if login.returncode == 0 else "尚未登录"}
 
     def snapshot(self, identifier):
         with self.lock:
-            summaries = [{key: s[key] for key in ("id", "title", "cwd", "status", "updatedAt")}
-                         for s in sorted(self.sessions.values(), key=lambda s: s["updatedAt"], reverse=True)[:100]]
+            summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model")}
+                         for s in sorted(self.sessions.values(), key=lambda s: s["updatedAt"], reverse=True)[:1000]]
+            projects = dict(self.projects)
+            for summary in summaries:
+                projects.setdefault(summary["cwd"], Path(summary["cwd"]).name or summary["cwd"])
             selected = None
             if identifier in self.sessions:
                 selected = dict(self.session(identifier))
                 selected["messages"] = selected["messages"][-40:]
-                selected["historyTruncated"] = len(self.session(identifier)["messages"]) > 40
+                selected["historyTruncated"] = len(self.session(identifier)["messages"]) > 40 or bool(selected.get("historyCursor"))
             # Detach from shared dicts before serializing in the request handler.
-            return json.loads(json.dumps({"sessions": summaries, "selected": selected,
+            return json.loads(json.dumps({"sessions": summaries, "projects": [{"id": p, "title": t} for p, t in sorted(projects.items())], "selected": selected,
                                          "ready": self.rpc.ready}, ensure_ascii=False))
+
+    def add_project(self, request):
+        path = self.project(request.get("cwd"))
+        with self.lock:
+            title = path.name or str(path)
+            self.projects[str(path)] = title
+            self.store.save_project(str(path), title)
+        return {"id": str(path)}
+
+    def catalog(self, request):
+        params = {"limit": 50, "sortKey": "updated_at", "sourceKinds": ["cli", "vscode", "exec", "appServer", "unknown"]}
+        if request.get("cursor"):
+            params["cursor"] = request["cursor"]
+        result = self.rpc.request("thread/list", params)
+        imported, skipped = 0, 0
+        for thread in result.get("data", []):
+            try:
+                raw = thread.get("cwd", "")
+                if raw.startswith("file:"):
+                    from urllib.parse import urlparse, unquote
+                    parsed = urlparse(raw)
+                    if parsed.netloc not in {"", "localhost"}:
+                        raise BridgeError("远端环境路径不可用")
+                    raw = unquote(parsed.path)
+                path = self.project(raw)
+            except (BridgeError, OSError, ValueError):
+                skipped += 1
+                continue
+            identifier = thread["id"]
+            with self.lock:
+                if identifier not in self.sessions:
+                    self.sessions[identifier] = {"id": identifier,
+                        "title": clipped(thread.get("name") or thread.get("preview") or path.name, 100),
+                        "cwd": str(path), "status": "idle", "turnId": None,
+                        "updatedAt": thread.get("updatedAt") or thread.get("createdAt") or 0,
+                        "origin": "codex", "messages": [], "approvals": [], "diff": "", "error": None,
+                        "historyLoaded": False, "readOnly": False, "model": None, "effort": None}
+                    self.store.save(self.sessions[identifier])
+                    imported += 1
+                elif identifier not in self.loaded:
+                    session = self.sessions[identifier]
+                    if thread.get("name"):
+                        session["title"] = clipped(thread["name"], 100)
+                    session["updatedAt"] = max(session["updatedAt"], thread.get("updatedAt") or 0)
+                    self.store.save(session)
+        return {"nextCursor": result.get("nextCursor"), "imported": imported, "skipped": skipped}
+
+    def history_page(self, request):
+        identifier = request.get("sessionId")
+        with self.lock:
+            session = self.session(identifier)
+            self.project(session["cwd"])
+        params = {"threadId": identifier, "limit": 40, "sortDirection": "desc"}
+        if request.get("cursor"):
+            params["cursor"] = request["cursor"]
+        page = self.rpc.request("thread/items/list", params)
+        messages = []
+        for entry in reversed(page.get("data", [])):
+            item = entry["item"]
+            text = self.render_item(item)
+            if text is not None:
+                messages.append({"id": item["id"], "kind": item["type"], "text": clipped(text),
+                                 "status": item.get("status", "completed")})
+        return {"messages": messages, "nextCursor": page.get("nextCursor")}
+
+    def open_session(self, request):
+        identifier = request.get("sessionId")
+        with self.lock:
+            session = self.session(identifier)
+            self.project(session["cwd"])
+            if identifier in self.loaded:
+                return {"id": identifier}
+        metadata = self.rpc.request("thread/read", {"threadId": identifier})["thread"]
+        turns = self.rpc.request("thread/turns/list", {"threadId": identifier, "limit": 1,
+            "sortDirection": "desc", "itemsView": "notLoaded"}).get("data", [])
+        page = self.history_page({"sessionId": identifier})
+        with self.lock:
+            session["messages"] = page["messages"]
+            session["historyCursor"] = page["nextCursor"]
+            session["historyLoaded"] = True
+            if metadata.get("name"):
+                session["title"] = clipped(metadata["name"], 100)
+            if turns:
+                latest = turns[0]
+                # An external running task can be viewed, but is not owned by this process.
+                external_active = latest["status"] == "inProgress" and session.get("origin") == "codex"
+                session["readOnly"] = external_active
+                session["status"] = "externalActive" if external_active else (
+                    session["status"] if session["status"] == "interrupted" and latest["status"] == "inProgress" else latest["status"])
+                session["turnId"] = latest["id"]
+                if latest.get("error"):
+                    session["error"] = clipped(latest["error"].get("message"))
+        self.store.save(session)
+        return {"id": identifier}
+
+    def models(self, refresh=False):
+        if self.model_catalog and not refresh and time.monotonic() - self.models_updated_at < 300:
+            return {"models": self.model_catalog}
+        catalog, cursor, seen = [], None, set()
+        for _ in range(20):
+            params = {"limit": 50, "includeHidden": False}
+            if cursor:
+                params["cursor"] = cursor
+            result = self.rpc.request("model/list", params)
+            for model in result.get("data", []):
+                catalog.append({"model": model["model"], "displayName": model.get("displayName") or model["model"],
+                    "defaultReasoningEffort": model.get("defaultReasoningEffort"),
+                    "supportedReasoningEfforts": model.get("supportedReasoningEfforts", []),
+                    "isDefault": model.get("isDefault", False)})
+            cursor = result.get("nextCursor")
+            if not cursor:
+                break
+            if cursor in seen:
+                raise BridgeError("模型列表分页异常。")
+            seen.add(cursor)
+        else:
+            raise BridgeError("模型列表页数过多。")
+        self.model_catalog = catalog
+        self.models_updated_at = time.monotonic()
+        return {"models": catalog}
+
+    def model_settings(self, request):
+        name, effort = request.get("model"), request.get("effort")
+        if not name:
+            if effort:
+                raise BridgeError("请先选择模型再设置推理强度。")
+            return {}
+        model = next((m for m in self.models()["models"] if m["model"] == name), None)
+        if not model:
+            raise BridgeError("服务器模型列表中没有这个模型，请刷新列表。")
+        supported = {entry["reasoningEffort"] for entry in model["supportedReasoningEfforts"]}
+        chosen = effort or model["defaultReasoningEffort"]
+        if chosen and chosen not in supported:
+            raise BridgeError("所选模型不支持这个推理强度。")
+        return {"model": name, **({"effort": chosen} if chosen else {})}
 
     def on_message(self, message):
         method = message.get("method", "")
@@ -283,15 +434,19 @@ class Bridge:
 
     def create(self, request):
         path = self.project(request.get("cwd"))
+        settings = self.model_settings(request)
         result = self.rpc.request("thread/start", {"cwd": str(path), "approvalPolicy": "untrusted",
-                                  "approvalsReviewer": "user", "sandbox": "workspace-write"})
+                                  "approvalsReviewer": "user", "sandbox": "workspace-write",
+                                  **({"model": settings["model"]} if settings else {})})
         identifier = result["thread"]["id"]
         with self.lock:
             self.sessions[identifier] = {"id": identifier, "title": path.name or str(path), "cwd": str(path),
                 "status": "idle", "turnId": None, "updatedAt": time.time(), "messages": [],
-                "approvals": [], "diff": "", "error": None}
+                "approvals": [], "diff": "", "error": None, "origin": "app", "readOnly": False,
+                "model": result.get("model"), "effort": settings.get("effort") or result.get("reasoningEffort")}
             self.loaded.add(identifier)
             self.store.save(self.sessions[identifier])
+        self.add_project({"cwd": str(path)})
         return {"id": identifier}
 
     def send(self, request):
@@ -301,13 +456,19 @@ class Bridge:
         identifier = request.get("sessionId")
         with self.lock:
             session = self.session(identifier)
-            if session["status"] in ACTIVE:
+            if session["status"] in ACTIVE or session.get("readOnly"):
                 raise BridgeError("当前会话仍在运行或等待审批，请先完成或停止任务。")
             self.project(session["cwd"])
         if identifier not in self.loaded:
-            self.rpc.request("thread/resume", {"threadId": identifier, "cwd": session["cwd"],
-                                              "approvalPolicy": "untrusted", "sandbox": "workspace-write"})
+            self.open_session({"sessionId": identifier})
+            if session.get("readOnly"):
+                raise BridgeError("这个会话正在 CLI 中运行，请在 CLI 结束任务后刷新，再继续会话。")
+            resumed = self.rpc.request("thread/resume", {"threadId": identifier, "cwd": session["cwd"],
+                                              "approvalPolicy": "untrusted", "sandbox": "workspace-write", "excludeTurns": True})
+            session["model"] = resumed.get("model") or session.get("model")
+            session["effort"] = resumed.get("reasoningEffort") or session.get("effort")
             self.loaded.add(identifier)
+        settings = self.model_settings(request)
         with self.lock:
             session["status"] = "starting"
             session["error"] = None
@@ -318,8 +479,11 @@ class Bridge:
         try:
             result = self.rpc.request("turn/start", {"threadId": identifier,
                 "input": [{"type": "text", "text": text}], "approvalPolicy": "untrusted",
-                "approvalsReviewer": "user"})
+                "approvalsReviewer": "user", **settings})
             with self.lock:
+                if settings:
+                    session["model"] = settings["model"]
+                    session["effort"] = settings.get("effort")
                 session["turnId"] = result["turn"]["id"]
                 if session["status"] == "starting":
                     session["status"] = result["turn"]["status"]
@@ -393,6 +557,11 @@ class Bridge:
             return {"ok": True, "result": self.status()}
         if action == "snapshot":
             return {"ok": True, "result": self.snapshot(request.get("sessionId"))}
+        if action in {"catalog", "open", "historyPage", "models"}:
+            methods = {"catalog": self.catalog, "open": self.open_session, "historyPage": self.history_page,
+                       "models": lambda r: self.models(refresh=bool(r.get("refresh")))}
+            with self.mutations:
+                return {"ok": True, "result": methods[action](request)}
         if action == "directories":
             path = self.project(request.get("path") or str(self.root))
             children = []
@@ -408,7 +577,7 @@ class Bridge:
                     break
             return {"ok": True, "result": {"path": str(path), "root": str(self.root),
                      "parent": str(path.parent) if path != self.root else None, "directories": children}}
-        methods = {"create": self.create, "send": self.send, "answer": self.answer, "stop": self.stop}
+        methods = {"create": self.create, "send": self.send, "answer": self.answer, "stop": self.stop, "addProject": self.add_project}
         if action not in methods:
             raise BridgeError("未知操作。")
         with self.mutations:

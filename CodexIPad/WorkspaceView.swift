@@ -23,6 +23,8 @@ struct WorkspaceView: View {
     @State private var showProjects = false
     @State private var clearPending = false
     @State private var restartBackend = false
+    @State private var expandedProjects: Set<String> = []
+    @State private var historySession: CodexSession?
 
     init(connection: ConnectionModel) {
         self.connection = connection
@@ -46,29 +48,55 @@ struct WorkspaceView: View {
                         Text("将后台脚本安装到服务器当前用户目录。任务在服务器运行，断开 App 后仍可继续。")
                             .font(.caption).foregroundStyle(.secondary)
                     } else {
-                        Button { showProjects = true } label: { Label("新建项目会话", systemImage: "plus") }
+                        Button { showProjects = true } label: { Label("添加项目 / 新建会话", systemImage: "plus") }
                             .disabled(model.isBusy)
                     }
                     Button("重启 Codex 后台") { restartBackend = true }
                         .font(.caption).disabled(!connection.isConnected || model.isBusy)
                 }
-                Section("最近会话") {
-                    ForEach(model.sessions) { session in
-                        Button { Task { await model.select(session.id) } } label: {
-                            VStack(alignment: .leading, spacing: 5) {
-                                HStack {
-                                    Text(session.title).fontWeight(.medium).lineLimit(1)
-                                    if session.id == model.selectedID { Image(systemName: "checkmark") }
-                                }
-                                Text(session.cwd).font(.caption).lineLimit(1)
-                                Text(sessionStatus(session.status)).font(.caption2).foregroundStyle(.secondary)
+                if model.isPrepared {
+                    Section("CLI 历史") {
+                        Button("同步服务器历史") { Task { await model.syncHistory(reset: true) } }
+                            .disabled(!model.supportsCatalog || model.isBusy)
+                        if model.historyCursor != nil {
+                            Button("加载更多历史会话") { Task { await model.syncHistory(reset: false) } }
+                                .disabled(model.isBusy)
+                        }
+                        if !model.catalogStatus.isEmpty { Text(model.catalogStatus).font(.caption).foregroundStyle(.secondary) }
+                    }
+                    Section("下次任务使用的模型") {
+                        modelControls
+                    }
+                }
+                Section("项目") {
+                    ForEach(model.visibleProjects) { project in
+                        DisclosureGroup(isExpanded: Binding(get: { expandedProjects.contains(project.id) }, set: { expanded in
+                            if expanded { expandedProjects.insert(project.id) } else { expandedProjects.remove(project.id) }
+                        })) {
+                            ForEach(model.sessions(in: project)) { session in
+                                Button { Task { await model.select(session.id) } } label: {
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        HStack {
+                                            Text(session.title).fontWeight(.medium).lineLimit(2)
+                                            if session.id == model.selectedID { Image(systemName: "checkmark") }
+                                        }
+                                        Text(sessionStatus(session.status) + (session.origin == "codex" ? " · 历史会话" : ""))
+                                            .font(.caption2).foregroundStyle(.secondary)
+                                    }
+                                }.tint(.primary).disabled(!model.isPrepared || model.isBusy)
+                            }
+                            Button("在此项目新建会话") { Task { _ = await model.create(cwd: project.id) } }
+                                .disabled(!model.isPrepared || model.isBusy)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label(project.title, systemImage: "folder")
+                                Text(project.id).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                             }
                         }
-                        .tint(.primary)
-                        .disabled(!model.isPrepared)
                     }
                 }
             }
+            .searchable(text: $model.search, prompt: "搜索项目或会话")
             .navigationTitle("Codex iPad")
             .navigationSplitViewColumnWidth(min: 260, ideal: 300)
         } detail: {
@@ -89,13 +117,15 @@ struct WorkspaceView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { Task { await model.refresh() } } label: { Image(systemName: "arrow.clockwise") }
+                    Button { Task { await model.reloadCurrent() } } label: { Image(systemName: "arrow.clockwise") }
                         .disabled(!model.isPrepared)
                 }
             }
         }
         .sheet(isPresented: $showProjects) { ProjectPicker(model: model) }
-        .task(id: connection.isConnected) {
+        .sheet(item: $historySession) { session in HistoryBrowser(model: model, sessionID: session.id) }
+        .onChange(of: model.selected?.cwd) { _, path in if let path { expandedProjects.insert(path) } }
+        .task(id: connection.profile.credentialAccount + "|" + String(connection.isConnected)) {
             model.connectionChanged()
             if connection.isConnected { await model.poll() }
         }
@@ -115,11 +145,16 @@ struct WorkspaceView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(sessionStatus(session.status)).font(.subheadline.weight(.medium))
+                if let actualModel = session.model { Text(actualModel).font(.caption).foregroundStyle(.secondary) }
                 Spacer()
                 Text(session.cwd).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 if session.isRunning {
                     Button("停止", role: .destructive) { Task { await model.stop() } }
                         .disabled(model.isBusy || !model.isPrepared)
+                }
+                if model.supportsCatalog {
+                    Button { historySession = session } label: { Image(systemName: "clock.arrow.circlepath") }
+                        .accessibilityLabel("分页浏览会话历史")
                 }
             }.padding()
             Divider()
@@ -160,6 +195,10 @@ struct WorkspaceView: View {
                     .font(.caption).foregroundStyle(.orange)
                 Button("已检查会话，清除本机重试记录") { clearPending = true }.font(.caption)
             }
+            if session.readOnly == true {
+                Text("这个会话正在 CLI 中运行，目前仅供查看。请在 CLI 结束任务后刷新，再继续对话。")
+                    .font(.caption).foregroundStyle(.orange)
+            }
             HStack(alignment: .bottom, spacing: 12) {
                 TextField("给 Codex 一个任务…", text: $model.draft, axis: .vertical)
                     .lineLimit(2...8).padding(12)
@@ -167,12 +206,33 @@ struct WorkspaceView: View {
                     .disabled(model.hasUncertainSend)
                 Button(model.hasUncertainSend ? "重试" : "发送") { Task { await model.send() } }
                     .buttonStyle(.borderedProminent)
-                    .disabled(model.isBusy || !model.isPrepared ||
+                    .disabled(model.isBusy || !model.isPrepared || session.readOnly == true ||
                               (!model.hasUncertainSend && (session.isRunning || model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)))
             }
             Text("按服务器现有 Codex 账号和模型计费。命令审批由你处理。")
                 .font(.caption2).foregroundStyle(.secondary)
         }.padding()
+    }
+
+    private var modelControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("模型", selection: Binding(get: { model.selectedModel }, set: { value in
+                model.selectedModel = value; model.modelChanged()
+            })) {
+                Text("沿用会话 / 服务器默认").tag("")
+                if !model.selectedModel.isEmpty && !model.models.contains(where: { $0.model == model.selectedModel }) {
+                    Text(model.selectedModel + "（当前）").tag(model.selectedModel)
+                }
+                ForEach(model.models) { option in Text(option.displayName).tag(option.model) }
+            }
+            if let chosen = model.chosenModel, !chosen.supportedReasoningEfforts.isEmpty {
+                Picker("推理强度", selection: $model.selectedEffort) {
+                    Text("模型默认").tag("")
+                    ForEach(chosen.supportedReasoningEfforts) { effort in Text(effort.reasoningEffort).tag(effort.reasoningEffort) }
+                }
+            }
+            Button("刷新模型列表") { Task { await model.loadModels() } }
+        }.disabled(!model.supportsCatalog || model.isBusy)
     }
 }
 
@@ -190,6 +250,11 @@ private struct ProjectPicker: View {
                         Button("在这个目录新建会话") {
                             Task { if await model.create(cwd: listing.path) { dismiss() } }
                         }.disabled(model.isBusy)
+                        if model.supportsCatalog {
+                            Button("仅添加这个项目") {
+                                Task { if await model.addProject(cwd: listing.path) { dismiss() } }
+                            }.disabled(model.isBusy)
+                        }
                         if let parent = listing.parent {
                             Button("返回上级目录") { Task { await model.browse(parent) } }
                         }
@@ -215,6 +280,51 @@ private struct ProjectPicker: View {
             .navigationTitle("选择项目")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
         }
+    }
+}
+
+private struct HistoryBrowser: View {
+    @ObservedObject var model: WorkspaceModel
+    let sessionID: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var pages: [CodexHistoryPage] = []
+    @State private var index = 0
+    @State private var loading = false
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    if let error { Text(error).foregroundStyle(.red) }
+                    if loading { ProgressView("读取历史…") }
+                    if pages.indices.contains(index) {
+                        HStack {
+                            Button("较新一页") { index -= 1 }.disabled(index == 0 || loading)
+                            Spacer()
+                            Text("第 \(index + 1) 页").font(.caption)
+                            Spacer()
+                            Button("更早一页") {
+                                if index + 1 < pages.count { index += 1 }
+                                else if let cursor = pages[index].nextCursor { Task { await load(cursor) } }
+                            }.disabled(loading || (index + 1 == pages.count && pages[index].nextCursor == nil))
+                        }
+                        ForEach(pages[index].messages) { message in MessageCard(message: message) }
+                    }
+                }.padding()
+            }
+            .navigationTitle("会话历史")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+        }.task { await load(nil) }
+    }
+
+    private func load(_ cursor: String?) async {
+        loading = true; error = nil
+        defer { loading = false }
+        do {
+            let page = try await model.historyPage(sessionID: sessionID, cursor: cursor)
+            pages.append(page); index = pages.count - 1
+        } catch { self.error = error.localizedDescription }
     }
 }
 

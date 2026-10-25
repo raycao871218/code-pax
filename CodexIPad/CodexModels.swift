@@ -74,6 +74,8 @@ struct CodexSessionSummary: Decodable, Identifiable {
     let cwd: String
     let status: String
     let updatedAt: Double
+    let origin: String?
+    let model: String?
 }
 
 struct CodexMessage: Decodable, Identifiable {
@@ -107,6 +109,9 @@ struct CodexSession: Decodable, Identifiable {
     let diff: String
     let error: String?
     let historyTruncated: Bool
+    let readOnly: Bool?
+    let model: String?
+    let effort: String?
     var isRunning: Bool { ["inProgress", "waiting", "starting"].contains(status) }
 }
 
@@ -114,7 +119,26 @@ struct CodexSnapshot: Decodable {
     let sessions: [CodexSessionSummary]
     let selected: CodexSession?
     let ready: Bool
+    let projects: [CodexProject]?
 }
+
+struct CodexProject: Decodable, Identifiable { let id: String; let title: String }
+struct CodexCatalogPage: Decodable { let nextCursor: String?; let imported: Int; let skipped: Int }
+struct CodexHistoryPage: Decodable { let messages: [CodexMessage]; let nextCursor: String? }
+struct CodexEffort: Decodable, Identifiable {
+    let reasoningEffort: String
+    let description: String?
+    var id: String { reasoningEffort }
+}
+struct CodexModel: Decodable, Identifiable {
+    let model: String
+    let displayName: String
+    let defaultReasoningEffort: String?
+    let supportedReasoningEfforts: [CodexEffort]
+    let isDefault: Bool
+    var id: String { model }
+}
+struct CodexModelCatalog: Decodable { let models: [CodexModel] }
 
 enum RemoteShell {
     static func quote(_ value: String) -> String {
@@ -130,6 +154,7 @@ func sessionStatus(_ value: String) -> String {
     case "failed": return "执行失败"
     case "interrupted": return "已中断"
     case "unknown": return "结果待确认"
+    case "externalActive": return "CLI 中运行 · 仅查看"
     default: return "就绪"
     }
 }

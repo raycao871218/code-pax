@@ -2,6 +2,30 @@ import XCTest
 @testable import CodexIPad
 
 final class ConnectionTests: XCTestCase {
+    func testLegacyProfileMigratesWithoutPassword() throws {
+        let data = Data(#"{"host":"10.10.0.172","port":"22","username":"developer"}"#.utf8)
+        let profile = try JSONDecoder().decode(ServerProfile.self, from: data)
+        XCTAssertFalse(profile.rememberPassword)
+        XCTAssertFalse(profile.id.isEmpty)
+        let encoded = try JSONEncoder().encode(profile)
+        let fields = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        XCTAssertNil(fields["password"])
+        XCTAssertEqual(try JSONDecoder().decode(ServerProfile.self, from: encoded).id, profile.id)
+    }
+
+    func testSavedCredentialIsBoundToServerPortUserAndProfile() {
+        let profile = ServerProfile()
+        var other = profile
+        other.host = "another-host"
+        XCTAssertNotEqual(profile.credentialAccount, other.credentialAccount)
+        other = profile; other.port = "2222"
+        XCTAssertNotEqual(profile.credentialAccount, other.credentialAccount)
+        other = profile; other.username = "another-user"
+        XCTAssertNotEqual(profile.credentialAccount, other.credentialAccount)
+        other = profile; other.id = UUID().uuidString
+        XCTAssertNotEqual(profile.credentialAccount, other.credentialAccount)
+    }
+
     func testRejectsInvalidPortsAndURLInput() {
         for port in ["0", "65536", "abc", "-1"] {
             var profile = ServerProfile()
