@@ -7,3 +7,5 @@ work/
 *.ipa
 *.p12
 *.mobileprovision
+__pycache__/
+*.pyc

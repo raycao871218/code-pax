@@ -15,6 +15,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "A276983FB212908B9605C470";
 		};
+		"CBC40F0E180A89C7941C20B1" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodexModels.swift";
+			"sourceTree" = "<group>";
+		};
+		"43AFCE2FC7FD47F7EFB2D258" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "CBC40F0E180A89C7941C20B1";
+		};
 		"73097532074DC08CEB06848E" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -55,6 +65,36 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B0E761D36C8A2DDCBB3A11FA";
 		};
+		"F7BB561F6168F5DA392CC3B7" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "WorkspaceModel.swift";
+			"sourceTree" = "<group>";
+		};
+		"55E316644D65F19FA0281BDA" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F7BB561F6168F5DA392CC3B7";
+		};
+		"5D7F05CC38FDBBA02A03F66E" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "WorkspaceView.swift";
+			"sourceTree" = "<group>";
+		};
+		"935453F433F2B6655843A15C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "5D7F05CC38FDBBA02A03F66E";
+		};
+		"86A00AFDE18CA2497EDC3F3F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodexModelsTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"2C31D4D7222E782DC6023CE2" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "86A00AFDE18CA2497EDC3F3F";
+		};
 		"3F93E5050DDFC3284041B794" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -70,6 +110,16 @@
 			"lastKnownFileType" = "text.plist.xml";
 			"path" = "Info.plist";
 			"sourceTree" = "<group>";
+		};
+		"94CC9F2AC0530B3EEA5E4DA0" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.script.python";
+			"path" = "../backend/bridge.py";
+			"sourceTree" = "<group>";
+		};
+		"7BA53F274DAE182CE44069D5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "94CC9F2AC0530B3EEA5E4DA0";
 		};
 		"754F0FF7D05792D37EC412FC" = {
 			"isa" = "XCRemoteSwiftPackageReference";
@@ -138,11 +188,15 @@
 			"isa" = "PBXGroup";
 			"children" = (
 				"A276983FB212908B9605C470",
+				"CBC40F0E180A89C7941C20B1",
 				"73097532074DC08CEB06848E",
 				"473E88A206061E063DD7AAAE",
 				"281802A1113621ECCE021D70",
 				"B0E761D36C8A2DDCBB3A11FA",
+				"F7BB561F6168F5DA392CC3B7",
+				"5D7F05CC38FDBBA02A03F66E",
 				"7B594B6DB375E1BF3F23CDD6",
+				"94CC9F2AC0530B3EEA5E4DA0",
 			);
 			"path" = "CodexIPad";
 			"sourceTree" = "<group>";
@@ -150,6 +204,7 @@
 		"788492B1BB25053FB57A79AB" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"86A00AFDE18CA2497EDC3F3F",
 				"3F93E5050DDFC3284041B794",
 			);
 			"path" = "CodexIPadTests";
@@ -226,8 +281,8 @@
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "1";
-				"MARKETING_VERSION" = "1.0";
+				"CURRENT_PROJECT_VERSION" = "2";
+				"MARKETING_VERSION" = "0.2.0";
 				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks";
 			};
 		};
@@ -243,8 +298,8 @@
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "1";
-				"MARKETING_VERSION" = "1.0";
+				"CURRENT_PROJECT_VERSION" = "2";
+				"MARKETING_VERSION" = "0.2.0";
 				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks";
 			};
 		};
@@ -299,10 +354,13 @@
 			"buildActionMask" = 2147483647;
 			"files" = (
 				"BB24E5165B668E3189B83836",
+				"43AFCE2FC7FD47F7EFB2D258",
 				"4ADFDFFF44383178499644D8",
 				"7BF45F86754FC2D915354B16",
 				"D3B97ED78F2E25B7468E9941",
 				"F62D998D58E5F4E14278AD79",
+				"55E316644D65F19FA0281BDA",
+				"935453F433F2B6655843A15C",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
@@ -320,6 +378,7 @@
 			"isa" = "PBXResourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+				"7BA53F274DAE182CE44069D5",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
@@ -361,6 +420,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+				"2C31D4D7222E782DC6023CE2",
 				"9719356EE97A2291AE370E8C",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;

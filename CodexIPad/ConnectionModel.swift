@@ -23,6 +23,45 @@ final class ConnectionModel: ObservableObject {
     private var monitor: Task<Void, Never>?
     private let trustStore = HostTrustStore()
 
+    func runCommand(_ command: String, limit: Int = 2_097_152) async throws -> String {
+        guard isConnected, let client, client.isConnected else {
+            throw ConnectionError.message("SSH 已断开，请重新连接服务器。")
+        }
+        let watchdog = Task {
+            do { try await Task.sleep(for: .seconds(45)) } catch { return }
+            try? await client.close()
+        }
+        defer { watchdog.cancel() }
+        let output = try await client.executeCommand("bash -lc " + RemoteShell.quote(command), maxResponseSize: limit)
+        return String(decoding: output.readableBytesView, as: UTF8.self)
+    }
+
+    func runBridge<Value: Decodable>(mode: String, fields: [String: JSONValue] = [:], proxy: String? = nil) async throws -> Value {
+        guard ["ensure", "call"].contains(mode) else { throw ConnectionError.message("无效的后台请求。") }
+        var command = "python3 \"$HOME/.local/share/codex-ipad/bridge.py\" " + mode
+        if mode == "call" {
+            command += " " + RemoteShell.quote(try JSONEncoder().encode(fields).base64EncodedString())
+        }
+        if let proxy, !proxy.isEmpty {
+            guard let url = URLComponents(string: proxy), ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+                  url.host != nil, url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else {
+                throw ConnectionError.message("代理必须是 http:// 或 https:// 地址，第一版不支持带账号密码的代理。")
+            }
+            command = "HTTP_PROXY=" + RemoteShell.quote(proxy) + " HTTPS_PROXY=" + RemoteShell.quote(proxy) + " " + command
+        }
+        let output = try await runCommand(command)
+        guard let data = output.trimmingCharacters(in: .whitespacesAndNewlines).data(using: .utf8) else {
+            throw ConnectionError.message("服务器返回了无效数据。")
+        }
+        let envelope: BridgeEnvelope<Value>
+        do { envelope = try JSONDecoder().decode(BridgeEnvelope<Value>.self, from: data) }
+        catch { throw ConnectionError.message("后台返回格式不正确，请检查服务器 shell 启动脚本是否输出了额外内容。") }
+        guard envelope.ok, let result = envelope.result else {
+            throw ConnectionError.message(envelope.error ?? "后台请求失败。")
+        }
+        return result
+    }
+
     func connect() async {
         guard !isBusy, !isConnected else { return }
         errorMessage = nil

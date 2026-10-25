@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ConnectionView: View {
-    @StateObject private var model = ConnectionModel()
+    @ObservedObject var model: ConnectionModel
     @State private var showForgetConfirmation = false
 
     var body: some View {
@@ -139,4 +139,4 @@ struct ConnectionView: View {
     }
 }
 
-#Preview { ConnectionView() }
+#Preview { ConnectionView(model: ConnectionModel()) }
