@@ -58,6 +58,8 @@ struct BridgeStatus: Decodable {
     let root: String
     let authenticated: Bool
     let accountType: String
+    let version: String?
+    let upgradePending: Bool?
 }
 
 struct DirectoryEntry: Decodable, Identifiable { let id: String; let name: String }

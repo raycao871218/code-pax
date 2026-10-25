@@ -48,6 +48,8 @@ struct WorkspaceView: View {
                         Text("将后台脚本安装到服务器当前用户目录。任务在服务器运行，断开 App 后仍可继续。")
                             .font(.caption).foregroundStyle(.secondary)
                     } else {
+                        Button("重新准备 / 应用后台更新") { Task { await model.prepare() } }
+                            .disabled(model.isBusy)
                         Button { showProjects = true } label: { Label("添加项目 / 新建会话", systemImage: "plus") }
                             .disabled(model.isBusy)
                     }
@@ -110,7 +112,7 @@ struct WorkspaceView: View {
                     conversation(session)
                 } else {
                     ContentUnavailableView("开始一个项目会话", systemImage: "bubble.left.and.bubble.right",
-                        description: Text(connection.isConnected ? "先准备工作区，然后选择项目目录并新建会话。" : "先在“连接”页面登录服务器。"))
+                        description: Text(connection.isConnected ? "连接后自动读取服务器历史。在侧栏选择已有对话，或添加项目新建会话。" : "先在“连接”页面登录服务器。"))
                 }
             }
             .navigationTitle(model.selected?.title ?? "工作区")
@@ -125,9 +127,15 @@ struct WorkspaceView: View {
         .sheet(isPresented: $showProjects) { ProjectPicker(model: model) }
         .sheet(item: $historySession) { session in HistoryBrowser(model: model, sessionID: session.id) }
         .onChange(of: model.selected?.cwd) { _, path in if let path { expandedProjects.insert(path) } }
+        .onChange(of: model.projects.map(\.id)) { old, new in
+            expandedProjects.formUnion(Set(new).subtracting(old))
+        }
         .task(id: connection.profile.credentialAccount + "|" + String(connection.isConnected)) {
             model.connectionChanged()
-            if connection.isConnected { await model.poll() }
+            if connection.isConnected {
+                await model.prepare()
+                await model.poll()
+            }
         }
         .confirmationDialog("清除本机待确认的发送记录？", isPresented: $clearPending, titleVisibility: .visible) {
             Button("已核实服务器状态，清除重试记录", role: .destructive) { model.discardPending() }
@@ -190,6 +198,7 @@ struct WorkspaceView: View {
 
     private func composer(_ session: CodexSession) -> some View {
         VStack(alignment: .leading, spacing: 10) {
+            modelControls
             if model.hasUncertainSend {
                 Text("有一条发送结果待确认。点击重试将使用同一个操作 ID，不会再次启动已接收的任务。")
                     .font(.caption).foregroundStyle(.orange)
@@ -232,6 +241,13 @@ struct WorkspaceView: View {
                 }
             }
             Button("刷新模型列表") { Task { await model.loadModels() } }
+            if !model.supportsCatalog {
+                Text("先完成旧后台的任务，再重新准备工作区以启用模型选择。")
+                    .font(.caption).foregroundStyle(.orange)
+            } else if model.models.isEmpty {
+                Text("尚未取得服务器模型列表，请刷新；失败原因会显示在工作区。")
+                    .font(.caption).foregroundStyle(.orange)
+            }
         }.disabled(!model.supportsCatalog || model.isBusy)
     }
 }

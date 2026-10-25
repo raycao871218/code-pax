@@ -25,6 +25,7 @@ final class WorkspaceModel: ObservableObject {
 
     let connection: ConnectionModel
     private var isRefreshing = false
+    private var isSyncingHistory = false
     private var storageKey: String { "workspace.\(connection.profile.endpoint).\(connection.profile.username)" }
     private var pendingKey: String { storageKey + ".pending" }
     private var activeServerKey: String?
@@ -92,7 +93,7 @@ final class WorkspaceModel: ObservableObject {
             supportsCatalog = result.protocol >= 2
             selectedID = UserDefaults.standard.string(forKey: storageKey + ".selection")
             hasUncertainSend = UserDefaults.standard.data(forKey: pendingKey) != nil
-            status = supportsCatalog ? "Codex 已就绪 · \(result.accountType)" : "后台为旧版；可先处理原任务，再重启后台启用新功能。"
+            status = result.upgradePending == true ? "后台更新待完成；请先处理运行中或待审批的任务，再重新准备工作区。" : "Codex 已就绪 · \(result.accountType)"
             try await refreshThrowing()
             await browse(result.root)
             if supportsCatalog {
@@ -107,8 +108,11 @@ final class WorkspaceModel: ObservableObject {
     }
 
     func poll() async {
+        var ticks = 0
         while !Task.isCancelled, connection.isConnected {
             if isPrepared { await refresh() }
+            ticks += 1
+            if isPrepared, !isBusy, ticks % 15 == 0 { await syncHistory(reset: true) }
             do { try await Task.sleep(for: .seconds(2)) } catch { return }
         }
     }
@@ -148,14 +152,27 @@ final class WorkspaceModel: ObservableObject {
     }
 
     func syncHistory(reset: Bool) async {
-        guard supportsCatalog else { return }
+        guard supportsCatalog, !isSyncingHistory else { return }
+        isSyncingHistory = true
+        defer { isSyncingHistory = false }
         do {
-            var fields = ["action": JSONValue.string("catalog")]
-            if !reset, let historyCursor { fields["cursor"] = .string(historyCursor) }
-            let page: CodexCatalogPage = try await request(fields)
-            historyCursor = page.nextCursor
-            catalogStatus = "已同步 CLI / Codex 历史，按项目目录分组。" + (page.skipped > 0 ? "本页有 \(page.skipped) 个会话的目录不可用或超出工作根目录。" : "")
-            try await refreshThrowing()
+            var cursor = reset ? nil : historyCursor
+            var seen: Set<String> = []
+            var skipped = 0
+            repeat {
+                try Task.checkCancellation()
+                var fields = ["action": JSONValue.string("catalog")]
+                if let cursor { fields["cursor"] = .string(cursor) }
+                let page: CodexCatalogPage = try await request(fields)
+                historyCursor = page.nextCursor
+                skipped += page.skipped
+                try await refreshThrowing()
+                cursor = page.nextCursor
+                if let cursor, !seen.insert(cursor).inserted {
+                    throw ConnectionError.message("服务器返回重复的历史分页游标，请重新同步。")
+                }
+            } while cursor != nil
+            catalogStatus = "已读取服务器 CLI / Codex 会话，按项目分组。" + (skipped > 0 ? "有 \(skipped) 个会话的目录不可用或超出工作根目录。" : "")
         } catch { self.error = error.localizedDescription }
     }
 

@@ -18,6 +18,7 @@ import time
 import uuid
 
 PROTOCOL = 2
+BRIDGE_VERSION = "0.3.1"
 MAX_WIRE = 2 * 1024 * 1024
 MAX_TEXT = 12000
 ACTIVE = {"inProgress", "waiting", "starting"}
@@ -99,7 +100,7 @@ class AppServer:
                                         stderr=sys.stderr, text=True, bufsize=1)
         threading.Thread(target=self.read, daemon=True).start()
         try:
-            self.request("initialize", {"clientInfo": {"name": "codex_ipad", "title": "Codex iPad", "version": "0.3.0"},
+            self.request("initialize", {"clientInfo": {"name": "codex_ipad", "title": "Codex iPad", "version": BRIDGE_VERSION},
                                         "capabilities": {"experimentalApi": True}})
             self.write({"method": "initialized", "params": {}})
             self.ready = True
@@ -198,7 +199,7 @@ class Bridge:
         login = subprocess.run([shutil.which("codex") or "codex", "login", "status"],
                                capture_output=True, timeout=10)
         return {"protocol": PROTOCOL, "ready": self.rpc.ready,
-                "version": "0.3.0",
+                "version": BRIDGE_VERSION,
                 "root": str(self.root), "authenticated": login.returncode == 0,
                 "accountType": "服务器已有登录" if login.returncode == 0 else "尚未登录"}
 
@@ -670,21 +671,42 @@ def serve(directory, root):
 
 def ensure(directory, root):
     try:
-        result = call(directory, {"action": "snapshot"})
-        if result.get("result", {}).get("ready"):
-            return call(directory, {"action": "status"})
-        raise BridgeError("Codex 后台已退出。请在服务器停止旧后台后重新准备工作区。")
+        status = call(directory, {"action": "status"})
+        if not status.get("ok"):
+            raise BridgeError(status.get("error", "无法读取后台状态。"))
+        running = status["result"]
+        if running.get("ready") and running.get("protocol") == PROTOCOL and running.get("version") == BRIDGE_VERSION:
+            return status
+        snapshot = call(directory, {"action": "snapshot"})
+        if not snapshot.get("ok"):
+            raise BridgeError(snapshot.get("error", "无法确认任务状态。"))
+        active = any(s.get("status") in ACTIVE | {"unknown"} for s in snapshot["result"].get("sessions", []))
+        if active:
+            running["upgradePending"] = True
+            return status
+        # The daemon rechecks under its mutation lock, protecting tasks started after our snapshot.
+        stopped = call(directory, {"action": "shutdown"})
+        if not stopped.get("ok"):
+            running["upgradePending"] = True
+            return status
+        root = root or running.get("root")
+        for _ in range(100):
+            if not (directory / "bridge.sock").exists():
+                break
+            time.sleep(0.1)
+        else:
+            raise BridgeError("后台正在更新，请稍后重新连接。")
     except (FileNotFoundError, ConnectionRefusedError):
         pass
     executable = shutil.which("codex")
     if not executable:
         raise BridgeError("未找到 codex，请先在服务器安装并登录 Codex CLI。")
-    log = open(directory / "bridge.log", "a")
     command = [sys.executable, str(Path(__file__).resolve()), "serve"]
     if root:
         command += ["--root", root]
-    process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
-                               cwd=str(Path.home()), start_new_session=True, close_fds=True)
+    with open(directory / "bridge.log", "a") as log:
+        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                   cwd=str(Path.home()), start_new_session=True, close_fds=True)
     for _ in range(100):
         try:
             return call(directory, {"action": "status"})

@@ -2,8 +2,51 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch, Mock
 
-from bridge import Bridge, BridgeError
+from bridge import Bridge, BridgeError, ensure, BRIDGE_VERSION, PROTOCOL
+
+
+class EnsureUpgradeTests(unittest.TestCase):
+    def status(self, current=False):
+        return {"ok": True, "result": {"ready": True, "protocol": PROTOCOL if current else 1,
+                "version": BRIDGE_VERSION if current else None, "root": "/home/example"}}
+
+    def test_matching_daemon_is_reused(self):
+        with patch("bridge.call", return_value=self.status(True)) as rpc, patch("bridge.subprocess.Popen") as spawn:
+            self.assertTrue(ensure(Path("/unused"), None)["ok"])
+            self.assertEqual(rpc.call_count, 1)
+            spawn.assert_not_called()
+
+    def test_old_daemon_with_active_or_uncertain_tasks_is_preserved(self):
+        for state in ["inProgress", "waiting", "starting", "unknown"]:
+            with self.subTest(state=state), patch("bridge.call", side_effect=[self.status(),
+                    {"ok": True, "result": {"sessions": [{"status": state}]}}]) as rpc, patch("bridge.subprocess.Popen") as spawn:
+                self.assertTrue(ensure(Path("/unused"), None)["result"]["upgradePending"])
+                self.assertEqual(rpc.call_count, 2)
+                spawn.assert_not_called()
+
+    def test_idle_old_daemon_upgrades_and_preserves_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch("bridge.call", side_effect=[self.status(), {"ok": True, "result": {"sessions": []}},
+                    {"ok": True, "result": {}}, self.status(True)]) as rpc, \
+                    patch("bridge.shutil.which", return_value="/usr/local/bin/codex"), \
+                    patch("bridge.subprocess.Popen", return_value=Mock()) as spawn:
+                self.assertEqual(ensure(Path(directory), None)["result"]["version"], BRIDGE_VERSION)
+                self.assertEqual(rpc.call_args_list[2].args[1], {"action": "shutdown"})
+                self.assertEqual(spawn.call_args.args[0][-2:], ["--root", "/home/example"])
+
+    def test_task_starting_during_upgrade_cannot_be_killed(self):
+        with patch("bridge.call", side_effect=[self.status(), {"ok": True, "result": {"sessions": []}},
+                {"ok": False, "error": "task started"}]), patch("bridge.subprocess.Popen") as spawn:
+            self.assertTrue(ensure(Path("/unused"), None)["result"]["upgradePending"])
+            spawn.assert_not_called()
+
+    def test_unknown_snapshot_fails_without_shutdown(self):
+        with patch("bridge.call", side_effect=[self.status(), {"ok": False, "error": "unavailable"}]) as rpc:
+            with self.assertRaises(BridgeError):
+                ensure(Path("/unused"), None)
+            self.assertEqual(rpc.call_count, 2)
 
 
 class FakeRPC:

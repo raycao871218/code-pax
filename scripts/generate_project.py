@@ -100,7 +100,7 @@ app_configs = config_list("App", {
     "INFOPLIST_FILE": "CodexIPad/Info.plist", "GENERATE_INFOPLIST_FILE": "NO",
     "TARGETED_DEVICE_FAMILY": "2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
     "SUPPORTS_MACCATALYST": "NO", "CODE_SIGN_STYLE": "Automatic",
-    "CURRENT_PROJECT_VERSION": "3", "MARKETING_VERSION": "0.3.0",
+    "CURRENT_PROJECT_VERSION": "4", "MARKETING_VERSION": "0.3.1",
     "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
 })
 test_configs = config_list("Tests", {
