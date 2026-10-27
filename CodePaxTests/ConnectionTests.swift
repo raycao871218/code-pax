@@ -1,5 +1,5 @@
 import XCTest
-@testable import CodexIPad
+@testable import CodePax
 
 final class ConnectionTests: XCTestCase {
     func testLegacyProfileMigratesWithoutPassword() throws {

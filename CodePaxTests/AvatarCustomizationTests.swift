@@ -3,7 +3,7 @@ import UIKit
 import SwiftUI
 import ImageIO
 import UniformTypeIdentifiers
-@testable import CodexIPad
+@testable import CodePax
 
 final class AvatarCustomizationTests: XCTestCase {
     private func image(_ color: UIColor, width: Int = 128, height: Int = 128) -> UIImage {

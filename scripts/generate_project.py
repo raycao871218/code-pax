@@ -46,8 +46,8 @@ def phase(name, kind, files):
                       "runOnlyForDeploymentPostprocessing": 0})
 
 
-source_files = sorted((ROOT / "CodexIPad").glob("*.swift"))
-test_files = sorted((ROOT / "CodexIPadTests").glob("*.swift"))
+source_files = sorted((ROOT / "CodePax").glob("*.swift"))
+test_files = sorted((ROOT / "CodePaxTests").glob("*.swift"))
 source_refs, test_refs, source_builds, test_builds = [], [], [], []
 for files, refs, builds in [(source_files, source_refs, source_builds), (test_files, test_refs, test_builds)]:
     for path in files:
@@ -83,13 +83,13 @@ for name, url, version, product in [
     framework_builds.append(add(product + "Framework", {"isa": "PBXBuildFile", "productRef": dependency}))
 
 app = add("AppProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper.application",
-                         "path": "CodexIPad.app", "sourceTree": "BUILT_PRODUCTS_DIR"})
+                         "path": "CodePax.app", "sourceTree": "BUILT_PRODUCTS_DIR"})
 tests = add("TestsProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper.cfbundle",
-                             "path": "CodexIPadTests.xctest", "sourceTree": "BUILT_PRODUCTS_DIR"})
+                             "path": "CodePaxTests.xctest", "sourceTree": "BUILT_PRODUCTS_DIR"})
 app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + [plist, bridge_file, assets_file],
-                             "path": "CodexIPad", "sourceTree": "<group>"})
+                             "path": "CodePax", "sourceTree": "<group>"})
 test_group = add("TestsGroup", {"isa": "PBXGroup", "children": test_refs,
-                                "path": "CodexIPadTests", "sourceTree": "<group>"})
+                                "path": "CodePaxTests", "sourceTree": "<group>"})
 product_group = add("ProductsGroup", {"isa": "PBXGroup", "children": [app, tests],
                                       "name": "Products", "sourceTree": "<group>"})
 main_group = add("MainGroup", {"isa": "PBXGroup", "children": [app_group, test_group, product_group],
@@ -102,10 +102,10 @@ project_configs = config_list("Project", {
 })
 app_configs = config_list("App", {
     "PRODUCT_NAME": "$(TARGET_NAME)", "PRODUCT_BUNDLE_IDENTIFIER": "com.raycao.codexipad",
-    "INFOPLIST_FILE": "CodexIPad/Info.plist", "GENERATE_INFOPLIST_FILE": "NO",
+    "INFOPLIST_FILE": "CodePax/Info.plist", "GENERATE_INFOPLIST_FILE": "NO",
     "TARGETED_DEVICE_FAMILY": "2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
     "SUPPORTS_MACCATALYST": "NO", "CODE_SIGN_STYLE": "Automatic",
-    "CURRENT_PROJECT_VERSION": "28", "MARKETING_VERSION": "0.14.0",
+    "CURRENT_PROJECT_VERSION": "29", "MARKETING_VERSION": "0.14.1",
     "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
     "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
 })
@@ -113,7 +113,7 @@ test_configs = config_list("Tests", {
     "PRODUCT_NAME": "$(TARGET_NAME)", "PRODUCT_BUNDLE_IDENTIFIER": "com.raycao.codexipad.tests",
     "GENERATE_INFOPLIST_FILE": "YES", "TARGETED_DEVICE_FAMILY": "2",
     "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator", "CODE_SIGN_STYLE": "Automatic",
-    "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/CodexIPad.app/CodexIPad",
+    "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/CodePax.app/CodePax",
     "BUNDLE_LOADER": "$(TEST_HOST)",
 })
 app_target = add("AppTarget", {
@@ -121,20 +121,20 @@ app_target = add("AppTarget", {
     "buildPhases": [phase("AppSources", "PBXSourcesBuildPhase", source_builds),
                     phase("AppFrameworks", "PBXFrameworksBuildPhase", framework_builds),
                     phase("AppResources", "PBXResourcesBuildPhase", [bridge_build, assets_build])],
-    "buildRules": [], "dependencies": [], "name": "CodexIPad", "productName": "CodexIPad",
+    "buildRules": [], "dependencies": [], "name": "CodePax", "productName": "CodePax",
     "productReference": app, "productType": "com.apple.product-type.application",
     "packageProductDependencies": products,
 })
 proxy = add("TestProxy", {"isa": "PBXContainerItemProxy", "containerPortal": ref("ProjectObject"),
-                          "proxyType": 1, "remoteGlobalIDString": app_target, "remoteInfo": "CodexIPad"})
+                          "proxyType": 1, "remoteGlobalIDString": app_target, "remoteInfo": "CodePax"})
 dependency = add("TestDependency", {"isa": "PBXTargetDependency", "target": app_target, "targetProxy": proxy})
 test_target = add("TestsTarget", {
     "isa": "PBXNativeTarget", "buildConfigurationList": test_configs,
     "buildPhases": [phase("TestSources", "PBXSourcesBuildPhase", test_builds),
                     phase("TestFrameworks", "PBXFrameworksBuildPhase", []),
                     phase("TestResources", "PBXResourcesBuildPhase", [])],
-    "buildRules": [], "dependencies": [dependency], "name": "CodexIPadTests",
-    "productName": "CodexIPadTests", "productReference": tests,
+    "buildRules": [], "dependencies": [dependency], "name": "CodePaxTests",
+    "productName": "CodePaxTests", "productReference": tests,
     "productType": "com.apple.product-type.bundle.unit-test",
 })
 project = add("ProjectObject", {
@@ -157,15 +157,15 @@ def serialize(value, indent=0):
     return str(value) if isinstance(value, int) else quoted(value)
 
 
-project_dir = ROOT / "CodexIPad.xcodeproj"
+project_dir = ROOT / "CodePax.xcodeproj"
 project_dir.mkdir(exist_ok=True)
 document = {"archiveVersion": 1, "classes": {}, "objectVersion": 56, "objects": objects, "rootObject": project}
 (project_dir / "project.pbxproj").write_text("// !$*UTF8*$!\n" + serialize(document) + "\n", encoding="utf-8")
 scheme_dir = project_dir / "xcshareddata" / "xcschemes"
 scheme_dir.mkdir(parents=True, exist_ok=True)
-app_ref = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{app_target}" BuildableName="CodexIPad.app" BlueprintName="CodexIPad" ReferencedContainer="container:CodexIPad.xcodeproj"/>'
-test_ref = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{test_target}" BuildableName="CodexIPadTests.xctest" BlueprintName="CodexIPadTests" ReferencedContainer="container:CodexIPad.xcodeproj"/>'
-(scheme_dir / "CodexIPad.xcscheme").write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
+app_ref = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{app_target}" BuildableName="CodePax.app" BlueprintName="CodePax" ReferencedContainer="container:CodePax.xcodeproj"/>'
+test_ref = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{test_target}" BuildableName="CodePaxTests.xctest" BlueprintName="CodePaxTests" ReferencedContainer="container:CodePax.xcodeproj"/>'
+(scheme_dir / "CodePax.xcscheme").write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="1600" version="1.3">
   <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
     <BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{app_ref}</BuildActionEntry></BuildActionEntries>

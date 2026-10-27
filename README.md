@@ -1,6 +1,6 @@
 # Code Pax
 
-一个通过 SSH 控制远端 Linux Codex 的自用原生 iPad App。**0.14.0** 支持 CLI 历史会话、项目分组、模型选择、多服务器和可选的钥匙串密码保存。
+一个通过 SSH 控制远端 Linux Codex 的自用原生 iPad App。**0.14.1** 支持 CLI 历史会话、项目分组、模型选择、多服务器和可选的钥匙串密码保存。
 
 ## 已实现
 
@@ -22,6 +22,12 @@
 - 添加暂时没有会话的项目；相同目录使用一个项目分组，目录不同的同名项目会显示完整路径。
 - 查看历史不会自动恢复或执行任务。发送新消息时恢复原 thread，正在外部 CLI 中执行的任务只读显示。
 - 历史窗口支持按页浏览更早消息。模型列表及可用推理强度从服务器读取，选择后用于下一次任务，支持沿用原会话或服务器默认设置。
+
+## 0.14.1 工程统一命名
+
+- Xcode 工程、Target、Scheme、Swift 模块与源码目录统一为 `CodePax`，测试目录为 `CodePaxTests`。
+- GitHub 仓库使用 `code-pax`；团队拉取后打开 `CodePax.xcodeproj`，选择 `CodePax` Scheme。
+- 保留既有 Bundle Identifier、钥匙串服务标识和服务器数据目录，继续覆盖安装时保留连接、密码和历史。
 
 ## 0.14.0 自定义角色与六种配色
 
@@ -96,7 +102,7 @@
 ## 0.11.1 Code Pax
 
 - 产品更名为 **Code Pax**，更新桌面名称、连接页、工作区标题和后台客户端显示名称。
-- 沿用原 Bundle Identifier、钥匙串服务、本机配置和服务器存储目录，升级保留连接、密码、历史、草稿和附件。Xcode 工程与 target 仍为 `CodexIPad`，本文构建命令继续有效。
+- 沿用原 Bundle Identifier、钥匙串服务、本机配置和服务器存储目录，升级保留连接、密码、历史、草稿和附件。Xcode 工程、Target 和 Scheme 现已统一为 `CodePax`。
 
 ## 0.11.0 附件工具栏、会话管理与文件预览
 
@@ -204,9 +210,14 @@ iPad SwiftUI → SSH → Python CLI 客户端 → 私有 Unix socket
 
 要求：Xcode 16 或更新版本；iPadOS 17 或更新版本。Windows 不能编译或签名 iPad App。
 
-1. 在 Mac 上获取本仓库，打开 `CodexIPad.xcodeproj`。
+1. 在 Mac 上获取本仓库，打开 `CodePax.xcodeproj`。
+   ```sh
+   git clone https://github.com/raycao871218/code-pax.git
+   cd code-pax
+   open CodePax.xcodeproj
+   ```
 2. 等待 Xcode 下载 Swift Package 依赖。Citadel 固定为 **0.12.1**，无需 CocoaPods 或 XcodeGen。
-3. 选择 **CodexIPad** target → **Signing & Capabilities**，选择自己的开发者 Team；如有冲突，修改 Bundle Identifier。
+3. 选择 **CodePax** target → **Signing & Capabilities**，选择自己的开发者 Team；如有冲突，修改 Bundle Identifier。
 4. 选择 iPad 模拟器或已配对的真实 iPad，运行。
 5. 输入服务器地址、SSH 端口、用户名和该服务器的密码。
    可填写服务器名称并勾选“记住这台服务器的密码”，再保存设置。已保存服务器以卡片显示，点卡片即可连接；卡片菜单可编辑或删除，“添加服务器”可保存其他 IP 或域名。
@@ -255,12 +266,12 @@ python3 -m unittest discover -s backend -v
 命令行检查（Mac）：
 
 ```sh
-xcodebuild -resolvePackageDependencies -project CodexIPad.xcodeproj -scheme CodexIPad
-xcodebuild -project CodexIPad.xcodeproj -scheme CodexIPad \
+xcodebuild -resolvePackageDependencies -project CodePax.xcodeproj -scheme CodePax
+xcodebuild -project CodePax.xcodeproj -scheme CodePax \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
-xcodebuild -showdestinations -project CodexIPad.xcodeproj -scheme CodexIPad
+xcodebuild -showdestinations -project CodePax.xcodeproj -scheme CodePax
 # 将下面的 ID 替换为上一条命令列出的可用 iPad 模拟器 ID
-xcodebuild -project CodexIPad.xcodeproj -scheme CodexIPad \
+xcodebuild -project CodePax.xcodeproj -scheme CodePax \
   -destination 'platform=iOS Simulator,id=YOUR_SIMULATOR_ID' CODE_SIGNING_ALLOWED=NO test
 ```
 

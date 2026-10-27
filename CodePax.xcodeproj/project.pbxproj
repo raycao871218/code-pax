@@ -75,15 +75,15 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "70757619063CC81CB9F941E8";
 		};
-		"A276983FB212908B9605C470" = {
+		"D0B54D828AFBEAD1C6754141" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "CodexIPadApp.swift";
+			"path" = "CodePaxApp.swift";
 			"sourceTree" = "<group>";
 		};
-		"BB24E5165B668E3189B83836" = {
+		"864954F8D544CA2CC56931AF" = {
 			"isa" = "PBXBuildFile";
-			"fileRef" = "A276983FB212908B9605C470";
+			"fileRef" = "D0B54D828AFBEAD1C6754141";
 		};
 		"CBC40F0E180A89C7941C20B1" = {
 			"isa" = "PBXFileReference";
@@ -429,13 +429,13 @@
 		"C2B6AF95E5FB6AF04547C8EA" = {
 			"isa" = "PBXFileReference";
 			"explicitFileType" = "wrapper.application";
-			"path" = "CodexIPad.app";
+			"path" = "CodePax.app";
 			"sourceTree" = "BUILT_PRODUCTS_DIR";
 		};
 		"9546C13FD73DB51D3B708BEE" = {
 			"isa" = "PBXFileReference";
 			"explicitFileType" = "wrapper.cfbundle";
-			"path" = "CodexIPadTests.xctest";
+			"path" = "CodePaxTests.xctest";
 			"sourceTree" = "BUILT_PRODUCTS_DIR";
 		};
 		"A7D8CE70846932FEE851CAD6" = {
@@ -448,7 +448,7 @@
 				"03C07FC175C08BEA422BAB74",
 				"9DFD5826D0266F958F4B3491",
 				"70757619063CC81CB9F941E8",
-				"A276983FB212908B9605C470",
+				"D0B54D828AFBEAD1C6754141",
 				"CBC40F0E180A89C7941C20B1",
 				"C43CF50ADDEF560CBAE7FEAA",
 				"4F168CEF0C9BD953781064B9",
@@ -470,7 +470,7 @@
 				"94CC9F2AC0530B3EEA5E4DA0",
 				"10310EF03022072BE8A2F9FB",
 			);
-			"path" = "CodexIPad";
+			"path" = "CodePax";
 			"sourceTree" = "<group>";
 		};
 		"788492B1BB25053FB57A79AB" = {
@@ -483,7 +483,7 @@
 				"761501226BAB83C7F1D3D8C7",
 				"B0DFFED03D06FF397B90180A",
 			);
-			"path" = "CodexIPadTests";
+			"path" = "CodePaxTests";
 			"sourceTree" = "<group>";
 		};
 		"1E78B559816E575FC0BDB29C" = {
@@ -551,14 +551,14 @@
 			"buildSettings" = {
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"PRODUCT_BUNDLE_IDENTIFIER" = "com.raycao.codexipad";
-				"INFOPLIST_FILE" = "CodexIPad/Info.plist";
+				"INFOPLIST_FILE" = "CodePax/Info.plist";
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"TARGETED_DEVICE_FAMILY" = "2";
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "28";
-				"MARKETING_VERSION" = "0.14.0";
+				"CURRENT_PROJECT_VERSION" = "29";
+				"MARKETING_VERSION" = "0.14.1";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks";
 			};
@@ -569,14 +569,14 @@
 			"buildSettings" = {
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"PRODUCT_BUNDLE_IDENTIFIER" = "com.raycao.codexipad";
-				"INFOPLIST_FILE" = "CodexIPad/Info.plist";
+				"INFOPLIST_FILE" = "CodePax/Info.plist";
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"TARGETED_DEVICE_FAMILY" = "2";
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "28";
-				"MARKETING_VERSION" = "0.14.0";
+				"CURRENT_PROJECT_VERSION" = "29";
+				"MARKETING_VERSION" = "0.14.1";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks";
 			};
@@ -600,7 +600,7 @@
 				"TARGETED_DEVICE_FAMILY" = "2";
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/CodexIPad.app/CodexIPad";
+				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/CodePax.app/CodePax";
 				"BUNDLE_LOADER" = "$(TEST_HOST)";
 			};
 		};
@@ -614,7 +614,7 @@
 				"TARGETED_DEVICE_FAMILY" = "2";
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/CodexIPad.app/CodexIPad";
+				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/CodePax.app/CodePax";
 				"BUNDLE_LOADER" = "$(TEST_HOST)";
 			};
 		};
@@ -638,7 +638,7 @@
 				"F98FA95E515FEB796775CD97",
 				"F75FBF7D1FB01F44FDA1FC3C",
 				"3CCF78490AB56D881C99496F",
-				"BB24E5165B668E3189B83836",
+				"864954F8D544CA2CC56931AF",
 				"43AFCE2FC7FD47F7EFB2D258",
 				"66E0D55740C11AB9AB46C212",
 				"9B972E27AA3978745D74FE19",
@@ -692,8 +692,8 @@
 			);
 			"dependencies" = (
 			);
-			"name" = "CodexIPad";
-			"productName" = "CodexIPad";
+			"name" = "CodePax";
+			"productName" = "CodePax";
 			"productReference" = "C2B6AF95E5FB6AF04547C8EA";
 			"productType" = "com.apple.product-type.application";
 			"packageProductDependencies" = (
@@ -709,7 +709,7 @@
 			"containerPortal" = "F7159B22A7397926CB2A11D3";
 			"proxyType" = 1;
 			"remoteGlobalIDString" = "0352A6A2FCE048894C87B37E";
-			"remoteInfo" = "CodexIPad";
+			"remoteInfo" = "CodePax";
 		};
 		"8BC62B80562684797FDF3D7A" = {
 			"isa" = "PBXTargetDependency";
@@ -756,8 +756,8 @@
 			"dependencies" = (
 				"8BC62B80562684797FDF3D7A",
 			);
-			"name" = "CodexIPadTests";
-			"productName" = "CodexIPadTests";
+			"name" = "CodePaxTests";
+			"productName" = "CodePaxTests";
 			"productReference" = "9546C13FD73DB51D3B708BEE";
 			"productType" = "com.apple.product-type.bundle.unit-test";
 		};

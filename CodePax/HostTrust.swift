@@ -47,6 +47,7 @@ final class PinnedHostValidator: NIOSSHClientServerAuthenticationDelegate, @unch
 }
 
 struct HostTrustStore {
+    // Retain the legacy Keychain service so existing trusted hosts survive upgrades.
     private let service = "CodexIPad.SSHHostTrust"
 
     private func query(_ endpoint: String) -> [String: Any] {

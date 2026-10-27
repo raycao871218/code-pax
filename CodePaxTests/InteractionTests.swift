@@ -2,7 +2,7 @@ import SwiftUI
 import XCTest
 import UIKit
 import UniformTypeIdentifiers
-@testable import CodexIPad
+@testable import CodePax
 
 final class InteractionTests: XCTestCase {
     @MainActor

@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct CodexIPadApp: App {
+struct CodePaxApp: App {
     var body: some Scene {
         WindowGroup {
             Group {

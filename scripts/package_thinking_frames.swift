@@ -12,7 +12,7 @@ let side = sheet.width / 2
 for index in 0..<4 {
     let crop = sheet.cropping(to: CGRect(x: (index % 2) * side, y: (index / 2) * side, width: side, height: side))!
     let name = "CodePaxThinking\(index)"
-    let directory = URL(fileURLWithPath: "CodexIPad/Assets.xcassets/\(name).imageset")
+    let directory = URL(fileURLWithPath: "CodePax/Assets.xcassets/\(name).imageset")
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     let destination = CGImageDestinationCreateWithURL(directory.appendingPathComponent("\(name).png") as CFURL, UTType.png.identifier as CFString, 1, nil)!
     CGImageDestinationAddImage(destination, crop, nil)

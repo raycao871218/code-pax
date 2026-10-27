@@ -4,7 +4,7 @@ import Citadel
 import NIOCore
 import NIOPosix
 import NIOSSH
-@testable import CodexIPad
+@testable import CodePax
 
 final class RemoteTerminalTests: XCTestCase {
     func testDimensionsAndProjectDirectoryDoNotAllowControlCharactersIntoShellInput() {

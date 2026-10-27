@@ -1,7 +1,7 @@
 import XCTest
 import SwiftUI
 import UIKit
-@testable import CodexIPad
+@testable import CodePax
 
 final class CodexModelsTests: XCTestCase {
     func testAttachmentLimitsAndAttachmentOnlyMessage() throws {

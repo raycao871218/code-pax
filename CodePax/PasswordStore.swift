@@ -4,6 +4,7 @@ import Security
 struct PasswordStore {
     private func query(_ profile: ServerProfile) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
+         // Keep the existing Keychain service so saved passwords survive upgrades.
          kSecAttrService as String: "CodexIPad.SSHPasswords",
          kSecAttrAccount as String: profile.credentialAccount]
     }

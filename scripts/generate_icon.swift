@@ -25,5 +25,5 @@ func export(size: Int, to path: String) {
     precondition(CGImageDestinationFinalize(output),"Could not write \(path)")
     print("Generated \(size)px: \(path)")
 }
-export(size:1024,to:"CodexIPad/Assets.xcassets/AppIcon.appiconset/AppIcon.png")
-export(size:512,to:"CodexIPad/Assets.xcassets/CodePaxPortrait.imageset/CodePaxPortrait.png")
+export(size:1024,to:"CodePax/Assets.xcassets/AppIcon.appiconset/AppIcon.png")
+export(size:512,to:"CodePax/Assets.xcassets/CodePaxPortrait.imageset/CodePaxPortrait.png")
