@@ -61,11 +61,16 @@ plist = add("Info.plist", {"isa": "PBXFileReference", "lastKnownFileType": "text
 bridge_file = add("BridgeResource", {"isa": "PBXFileReference", "lastKnownFileType": "text.script.python",
                                    "path": "../backend/bridge.py", "sourceTree": "<group>"})
 bridge_build = add("BridgeResourceBuild", {"isa": "PBXBuildFile", "fileRef": bridge_file})
+assets_file = add("AssetsResource", {"isa": "PBXFileReference", "lastKnownFileType": "folder.assetcatalog",
+                                   "path": "Assets.xcassets", "sourceTree": "<group>"})
+assets_build = add("AssetsResourceBuild", {"isa": "PBXBuildFile", "fileRef": assets_file})
 packages, products, framework_builds = [], [], []
 for name, url, version, product in [
     ("Citadel", "https://github.com/orlandos-nl/Citadel.git", "0.12.1", "Citadel"),
     ("NIO", "https://github.com/apple/swift-nio.git", "2.81.0", "NIOCore"),
     ("NIOSSH", "https://github.com/Wellz26/swift-nio-ssh.git", "0.3.4", "NIOSSH"),
+    ("SwiftTerm", "https://github.com/migueldeicaza/SwiftTerm.git", "1.10.1", "SwiftTerm"),
+    ("MarkdownUI", "https://github.com/gonzalezreal/swift-markdown-ui.git", "2.4.1", "MarkdownUI"),
 ]:
     requirement = {"kind": "exactVersion", "version": version} if name != "NIO" else {
         "kind": "upToNextMajorVersion", "minimumVersion": version}
@@ -81,7 +86,7 @@ app = add("AppProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper
                          "path": "CodexIPad.app", "sourceTree": "BUILT_PRODUCTS_DIR"})
 tests = add("TestsProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper.cfbundle",
                              "path": "CodexIPadTests.xctest", "sourceTree": "BUILT_PRODUCTS_DIR"})
-app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + [plist, bridge_file],
+app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + [plist, bridge_file, assets_file],
                              "path": "CodexIPad", "sourceTree": "<group>"})
 test_group = add("TestsGroup", {"isa": "PBXGroup", "children": test_refs,
                                 "path": "CodexIPadTests", "sourceTree": "<group>"})
@@ -100,7 +105,8 @@ app_configs = config_list("App", {
     "INFOPLIST_FILE": "CodexIPad/Info.plist", "GENERATE_INFOPLIST_FILE": "NO",
     "TARGETED_DEVICE_FAMILY": "2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
     "SUPPORTS_MACCATALYST": "NO", "CODE_SIGN_STYLE": "Automatic",
-    "CURRENT_PROJECT_VERSION": "4", "MARKETING_VERSION": "0.3.1",
+    "CURRENT_PROJECT_VERSION": "28", "MARKETING_VERSION": "0.14.0",
+    "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
     "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
 })
 test_configs = config_list("Tests", {
@@ -114,7 +120,7 @@ app_target = add("AppTarget", {
     "isa": "PBXNativeTarget", "buildConfigurationList": app_configs,
     "buildPhases": [phase("AppSources", "PBXSourcesBuildPhase", source_builds),
                     phase("AppFrameworks", "PBXFrameworksBuildPhase", framework_builds),
-                    phase("AppResources", "PBXResourcesBuildPhase", [bridge_build])],
+                    phase("AppResources", "PBXResourcesBuildPhase", [bridge_build, assets_build])],
     "buildRules": [], "dependencies": [], "name": "CodexIPad", "productName": "CodexIPad",
     "productReference": app, "productType": "com.apple.product-type.application",
     "packageProductDependencies": products,
