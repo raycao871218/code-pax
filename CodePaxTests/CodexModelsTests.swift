@@ -188,9 +188,45 @@ final class CodexModelsTests: XCTestCase {
         XCTAssertEqual(messages.map(\.id), [first.id, second.id])
         XCTAssertEqual(messages.map(\.status), ["accepted", "sending"])
     }
-    func testConsecutiveActivitiesCollapseWithoutHidingConversationOrder() {
+
+    func testPendingMessageKeepsOriginalPositionAsNewRepliesArriveAndAfterRestart() throws {
+        let first = CodexMessage(id: "first", kind: "agentMessage", text: "Earlier", status: "completed")
+        let next = CodexMessage(id: "next", kind: "agentMessage", text: "New reply", status: "completed")
+        let newest = CodexMessage(id: "newest", kind: "agentMessage", text: "Latest reply", status: "completed")
+        var pending = LocalSubmission(operationID: "pending", sessionID: "chat", text: "Original prompt", state: "unknown",
+                                      createdAt: 100, timelinePredecessors: [first.id])
+        XCTAssertEqual(MessageTimeline.merge(remote: [first, next], local: [pending], sessionID: "chat").map(\.id),
+                       [first.id, pending.id, next.id])
+        pending.state = "sending" // Retrying must not move the original message.
+        let restored = try JSONDecoder().decode(LocalSubmission.self, from: JSONEncoder().encode(pending))
+        XCTAssertEqual(MessageTimeline.merge(remote: [first, next, newest], local: [restored], sessionID: "chat").map(\.id),
+                       [first.id, pending.id, next.id, newest.id])
+        let accepted = CodexMessage(id: pending.id, kind: "userMessage", text: pending.text, status: "accepted")
+        XCTAssertEqual(MessageTimeline.merge(remote: [first, accepted, next], local: [restored], sessionID: "chat").map(\.id),
+                       [first.id, pending.id, next.id])
+    }
+
+    func testPendingOrderUsesOriginalSendTimeRatherThanDeliveryState() {
+        let first = CodexMessage(id: "first", kind: "agentMessage", text: "Earlier", status: "completed")
+        let next = CodexMessage(id: "next", kind: "agentMessage", text: "Later", status: "completed")
+        let older = LocalSubmission(operationID: "older", sessionID: "chat", text: "Older", state: "unknown",
+                                    createdAt: 100, timelinePredecessors: [first.id])
+        let newer = LocalSubmission(operationID: "newer", sessionID: "chat", text: "Newer", state: "failed",
+                                    createdAt: 200, timelinePredecessors: [first.id])
+        XCTAssertEqual(MessageTimeline.merge(remote: [first, next], local: [newer, older], sessionID: "chat").map(\.id),
+                       [first.id, older.id, newer.id, next.id])
+        // When the nearest anchor falls outside the visible history, use the earlier anchor.
+        var trimmed = older
+        trimmed.timelinePredecessors = [first.id, "no-longer-visible"]
+        XCTAssertEqual(MessageTimeline.merge(remote: [first, next], local: [trimmed], sessionID: "chat").map(\.id),
+                       [first.id, older.id, next.id])
+        XCTAssertEqual(MessageTimeline.merge(remote: [next], local: [trimmed], sessionID: "chat").map(\.id),
+                       [older.id, next.id])
+    }
+    func testCommandsDoNotSplitTheReplyAndRemainInOrderBelowIt() {
         let messages = [
             CodexMessage(id: "user", kind: "userMessage", text: "Run tests", status: "completed"),
+            CodexMessage(id: "intro", kind: "agentMessage", text: "Checking", status: "completed"),
             CodexMessage(id: "cmd1", kind: "commandExecution", text: "pwd", status: "completed"),
             CodexMessage(id: "cmd2", kind: "commandExecution", text: "swift test", status: "inProgress"),
             CodexMessage(id: "file", kind: "fileChange", text: "Sources/App.swift", status: "completed"),
@@ -198,12 +234,30 @@ final class CodexModelsTests: XCTestCase {
             CodexMessage(id: "cmd3", kind: "commandExecution", text: "git status", status: "completed")
         ]
         let entries = ConversationEntry.group(messages)
-        XCTAssertEqual(entries.map(\.id), ["user", "cmd1", "reply", "cmd3"])
-        XCTAssertEqual(entries[1].messages.map(\.id), ["cmd1", "cmd2", "file"])
+        XCTAssertEqual(entries.map(\.id), ["user", "intro"])
+        XCTAssertEqual(entries[1].replyMessages.map(\.id), ["intro", "reply"])
+        XCTAssertEqual(entries[1].activityMessages.map(\.id), ["cmd1", "cmd2", "file", "cmd3"])
         XCTAssertTrue(entries[1].isRunning)
-        XCTAssertEqual(entries[1].summary, "正在执行 · 2 条命令 · 1 次文件更新")
-        XCTAssertFalse(entries[2].isActivity)
+        XCTAssertEqual(entries[1].summary, "正在执行 · 3 条命令 · 1 次文件更新")
+        XCTAssertFalse(entries[1].isActivity)
+        XCTAssertTrue(entries[0].isUserMessage)
         XCTAssertTrue(ConversationEntry.group([]).isEmpty)
+    }
+
+    func testResponseGroupingKeepsSeparateUserTurnsAndStableStreamingIdentity() {
+        let command = CodexMessage(id: "cmd", kind: "commandExecution", text: "test", status: "inProgress")
+        let reply = CodexMessage(id: "reply", kind: "agentMessage", text: "Result", status: "completed")
+        let nextUser = CodexMessage(id: "user2", kind: "userMessage", text: "Next", status: "unknown")
+        let nextReply = CodexMessage(id: "reply2", kind: "agentMessage", text: "Next result", status: "completed")
+        let toolOnly = ConversationEntry.group([command])
+        let streaming = ConversationEntry.group([command, reply])
+        XCTAssertEqual(toolOnly[0].id, streaming[0].id)
+        XCTAssertTrue(toolOnly[0].isActivity)
+        XCTAssertFalse(streaming[0].isActivity)
+        let turns = ConversationEntry.group([command, reply, nextUser, nextReply])
+        XCTAssertEqual(turns.map(\.id), ["cmd", "user2", "reply2"])
+        XCTAssertEqual(turns[0].replyMessages.map(\.id), ["reply"])
+        XCTAssertEqual(turns[2].replyMessages.map(\.id), ["reply2"])
     }
 
     func testActivityIdentityRemainsStableAsOutputStreams() {

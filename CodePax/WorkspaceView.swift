@@ -210,6 +210,11 @@ struct WorkspaceView: View {
                     Menu {
                         Button("刷新会话", systemImage: "arrow.clockwise") { Task { await model.reloadCurrent() } }
                             .disabled(!model.isPrepared)
+                        if model.hasUncertainSend, let pendingSession = model.pendingSessionID {
+                            Button("查看待确认消息所在会话", systemImage: "exclamationmark.bubble") {
+                                Task { await model.select(pendingSession) }
+                            }.disabled(model.isBusy)
+                        }
                         if let selected = model.selected {
                             Button("会话历史", systemImage: "clock") { historySession = selected }
                             Text(selected.cwd)
@@ -325,13 +330,6 @@ struct WorkspaceView: View {
         let messages = theme.isCompanion ? CompanionReplyPolicy.displayedMessages(model.messages(for: session), state: companionState) : model.messages(for: session)
         let latestReplyID = CompanionReplyPolicy.latestReplyID(in: messages)
         return VStack(spacing: 0) {
-            if model.hasUncertainSend, let pendingSession = model.pendingSessionID, pendingSession != session.id {
-                HStack {
-                    Text("另一会话有消息待确认，请先处理该条消息。").font(.caption).foregroundStyle(.orange)
-                    Spacer()
-                    Button("查看消息") { Task { await model.select(pendingSession) } }.disabled(model.isBusy)
-                }.padding(12).background(theme.card)
-            }
             if session.readOnly == true {
                 HStack {
                     Label(session.writerOccupied == true ? "此会话被其他 Codex 客户端占用。请退出另一端会话后重新检查。" : "此会话正在其他客户端运行，目前仅供查看。", systemImage: "lock.fill")
@@ -348,7 +346,7 @@ struct WorkspaceView: View {
                     }
                     ForEach(ConversationEntry.group(messages)) { entry in
                         ConversationRow(entry: entry, model: model, sessionID: session.id,
-                            avatarState: entry.id == latestReplyID ? companionState : nil)
+                            avatarState: entry.replyMessages.contains(where: { $0.id == latestReplyID }) ? companionState : nil)
                     }
                     if let error = session.error, !error.isEmpty {
                         Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red).textSelection(.enabled)
@@ -591,29 +589,44 @@ private struct ConversationRow: View {
     let sessionID: String
     var avatarState: CompanionState? = nil
     var body: some View {
-        if entry.isActivity { ActivityGroup(entry: entry, model: model, sessionID: sessionID) }
-        else if let message = entry.messages.first { VStack(alignment: .leading, spacing: 12) {
-                if theme.isCompanion && message.kind != "userMessage" {
-                    HStack(spacing: 8) {
-                        if let avatarState {
-                            CompanionAvatar(state: avatarState).frame(width: 72, height: 72)
-                        } else { BrandMark().frame(width: 56, height: 56) }
-                        Text("Codex").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                        Spacer()
+        VStack(alignment: .leading, spacing: 12) {
+            if entry.isUserMessage {
+                ForEach(entry.messages) { message in messageContent(message) }
+            } else {
+                if !entry.replyMessages.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if theme.isCompanion {
+                            HStack(spacing: 8) {
+                                if let avatarState {
+                                    CompanionAvatar(state: avatarState).frame(width: 72, height: 72)
+                                } else { BrandMark().frame(width: 56, height: 56) }
+                                Text("Codex").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                Spacer()
+                            }
+                        }
+                        ForEach(entry.replyMessages) { message in messageContent(message) }
                     }
+                    .padding(theme.isCompanion ? 18 : 0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(theme.isCompanion ? theme.card : .clear, in: RoundedRectangle(cornerRadius: 22))
+                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(theme.isCompanion ? theme.border : .clear, lineWidth: 1))
                 }
-                if !message.text.isEmpty || message.kind == "userMessage" {
-                    MessageCard(message: message, model: model, sessionID: sessionID)
+                if !entry.activityMessages.isEmpty {
+                    ActivityGroup(entry: ConversationEntry(messages: entry.activityMessages), model: model, sessionID: sessionID)
                 }
-                if message.textTruncated == true {
-                    FullMessageButton(model: model, sessionID: sessionID, messageID: message.id,
-                                      length: message.contentLength ?? message.text.count, plainText: message.kind == "userMessage")
-                }
-            }.padding(theme.isCompanion && message.kind != "userMessage" ? 18 : 0)
-                .background(theme.isCompanion && message.kind != "userMessage" ? theme.card : .clear,
-                            in: RoundedRectangle(cornerRadius: 22))
-                .overlay(RoundedRectangle(cornerRadius: 22).stroke(theme.isCompanion && message.kind != "userMessage" ? theme.border : .clear, lineWidth: 1))
-                .modifier(RemoteFileLinks(model: model, sessionID: sessionID)) }
+            }
+        }.modifier(RemoteFileLinks(model: model, sessionID: sessionID))
+    }
+
+    @ViewBuilder
+    private func messageContent(_ message: CodexMessage) -> some View {
+        if !message.text.isEmpty || message.kind == "userMessage" {
+            MessageCard(message: message, model: model, sessionID: sessionID)
+        }
+        if message.textTruncated == true {
+            FullMessageButton(model: model, sessionID: sessionID, messageID: message.id,
+                              length: message.contentLength ?? message.text.count, plainText: message.kind == "userMessage")
+        }
     }
 }
 

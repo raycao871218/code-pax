@@ -203,6 +203,8 @@ struct LocalSubmission: Codable, Identifiable {
     var state: String
     var attachments: [UploadedAttachment]? = nil
     var request: [String: JSONValue]? = nil
+    var createdAt: Double? = nil
+    var timelinePredecessors: [String]? = nil
     var id: String { "local:" + operationID }
     var message: CodexMessage { CodexMessage(id: id, kind: "userMessage", text: text, status: state, attachments: attachments) }
 }
@@ -210,14 +212,36 @@ struct LocalSubmission: Codable, Identifiable {
 enum MessageTimeline {
     static func merge(remote: [CodexMessage], local: [LocalSubmission], sessionID: String) -> [CodexMessage] {
         let known = Set(remote.map(\.id))
-        return remote + local.filter { $0.sessionID == sessionID && !known.contains($0.id) }.map(\.message)
+        let pending = local.enumerated().filter { $0.element.sessionID == sessionID && !known.contains($0.element.id) }
+            .sorted {
+                let left = $0.element.createdAt ?? 0, right = $1.element.createdAt ?? 0
+                return left == right ? $0.offset < $1.offset : left < right
+            }
+        var result = remote
+        var inserted = Set<String>()
+        for (_, submission) in pending {
+            if let predecessors = submission.timelinePredecessors {
+                let anchor = predecessors.reversed().compactMap { id in result.firstIndex(where: { $0.id == id }) }.first
+                var position = anchor.map { $0 + 1 } ?? 0
+                // Submissions with the same anchor retain their original sending order.
+                while position < result.count, inserted.contains(result[position].id) { position += 1 }
+                result.insert(submission.message, at: position)
+            } else {
+                result.append(submission.message) // Legacy records are anchored when first restored.
+            }
+            inserted.insert(submission.id)
+        }
+        return result
     }
 }
 
 struct ConversationEntry: Identifiable {
     var messages: [CodexMessage]
     var id: String { messages[0].id }
-    var isActivity: Bool { messages[0].isActivity }
+    var isUserMessage: Bool { messages[0].kind == "userMessage" }
+    var replyMessages: [CodexMessage] { messages.filter { !$0.isActivity } }
+    var activityMessages: [CodexMessage] { messages.filter(\.isActivity) }
+    var isActivity: Bool { messages.allSatisfy(\.isActivity) }
     var isRunning: Bool { messages.contains { ["inProgress", "starting"].contains($0.status) } }
     var summary: String {
         let commands = messages.filter { $0.kind == "commandExecution" }.count
@@ -225,14 +249,15 @@ struct ConversationEntry: Identifiable {
         var parts: [String] = []
         if commands > 0 { parts.append("\(commands) 条命令") }
         if files > 0 { parts.append("\(files) 次文件更新") }
-        let other = messages.count - commands - files
+        let other = activityMessages.count - commands - files
         if other > 0 { parts.append("\(other) 项工具操作") }
         return (isRunning ? "正在执行 · " : "已执行 · ") + parts.joined(separator: " · ")
     }
     static func group(_ messages: [CodexMessage]) -> [Self] {
         var result: [Self] = []
         for message in messages {
-            if message.isActivity, result.last?.isActivity == true {
+            // One response per user turn; tool calls never split its text into cards.
+            if message.kind != "userMessage", result.last?.isUserMessage == false {
                 result[result.count - 1].messages.append(message)
             } else { result.append(Self(messages: [message])) }
         }

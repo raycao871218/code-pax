@@ -207,7 +207,9 @@ final class WorkspaceModel: ObservableObject {
             localSubmissions[index].state = state
             localSubmissions[index].request = request
         } else {
-            localSubmissions.append(LocalSubmission(operationID: operation, sessionID: session, text: text, state: state, attachments: details, request: request))
+            let predecessors = selected.flatMap { $0.id == session ? messages(for: $0).map(\.id) : nil }
+            localSubmissions.append(LocalSubmission(operationID: operation, sessionID: session, text: text, state: state,
+                attachments: details, request: request, createdAt: Date().timeIntervalSince1970, timelinePredecessors: predecessors))
         }
         saveOutbox()
     }
@@ -852,6 +854,13 @@ final class WorkspaceModel: ObservableObject {
         if let selected {
             let known = Set(selected.messages.map(\.id))
             localSubmissions.removeAll { $0.sessionID == selected.id && known.contains($0.id) && $0.state == "accepted" }
+            var predecessors = selected.messages.map(\.id)
+            for index in localSubmissions.indices where localSubmissions[index].sessionID == selected.id {
+                if localSubmissions[index].timelinePredecessors == nil {
+                    localSubmissions[index].timelinePredecessors = predecessors
+                }
+                predecessors.append(localSubmissions[index].id)
+            }
             saveOutbox()
         }
         if !snapshot.ready {

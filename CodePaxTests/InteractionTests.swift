@@ -112,6 +112,12 @@ final class InteractionTests: XCTestCase {
         XCTAssertEqual(CompanionReplyPolicy.latestReplyID(in: pending), pending.last?.id)
         XCTAssertEqual(CompanionReplyPolicy.latestReplyID(in: [old, user, first, last]), "last")
         XCTAssertEqual(CompanionReplyPolicy.displayedMessages([old, user, first, last], state: .thinking).count, 4)
+        let command = CodexMessage(id: "command", kind: "commandExecution", text: "test", status: "completed")
+        let grouped = ConversationEntry.group([old, user, first, command, last])
+        let latestID = CompanionReplyPolicy.latestReplyID(in: [old, user, first, command, last])
+        let animated = grouped.filter { $0.replyMessages.contains(where: { $0.id == latestID }) }
+        XCTAssertEqual(animated.count, 1)
+        XCTAssertEqual(animated.first?.id, "first")
         for state in [CompanionState.offline, .completed, .failed, .waiting] {
             XCTAssertEqual(CompanionReplyPolicy.displayedMessages([old, user], state: state).count, 2)
         }
