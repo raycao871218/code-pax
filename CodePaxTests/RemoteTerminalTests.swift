@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 import SwiftTerm
 import Citadel
 import NIOCore
@@ -7,6 +8,29 @@ import NIOSSH
 @testable import CodePax
 
 final class RemoteTerminalTests: XCTestCase {
+    @MainActor
+    func testOpeningAndReopeningTerminalAutomaticallyFocusesInput() async throws {
+        let connection = ConnectionModel()
+        let model = connection.terminal
+        model.loadPreview()
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.first as? UIWindowScene)
+        let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
+        defer { previousKeyWindow?.makeKey() }
+        for _ in 0..<2 {
+            let window = UIWindow(windowScene: scene)
+            window.rootViewController = UIHostingController(rootView:
+                RemoteTerminalScreen(model: model, connection: connection, workingDirectory: nil))
+            window.makeKeyAndVisible()
+            defer { window.isHidden = true; window.rootViewController = nil }
+            try await waitFor { model.terminal.isFirstResponder }
+            XCTAssertTrue(model.terminal.isFirstResponder)
+            model.terminal.resignFirstResponder()
+            window.isHidden = true
+            window.rootViewController = nil
+            try await Task.sleep(for: .milliseconds(100))
+        }
+    }
+
     func testDimensionsAndProjectDirectoryDoNotAllowControlCharactersIntoShellInput() {
         XCTAssertEqual(TerminalDimensions(columns: 0, rows: -1), TerminalDimensions(columns: 2, rows: 1))
         XCTAssertEqual(TerminalDimensions(columns: 9000, rows: 9000), TerminalDimensions(columns: 500, rows: 250))

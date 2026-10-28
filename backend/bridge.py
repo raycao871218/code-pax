@@ -3,6 +3,7 @@
 import argparse
 import base64
 import concurrent.futures
+import fcntl
 import hashlib
 import json
 import os
@@ -18,11 +19,38 @@ import time
 import uuid
 
 PROTOCOL = 2
-BRIDGE_VERSION = "0.11.1"
+BRIDGE_VERSION = "0.11.4"
 MAX_WIRE = 2 * 1024 * 1024
 MAX_TEXT = 12000
 MESSAGE_PREVIEW = 4000
 ACTIVE = {"inProgress", "waiting", "starting"}
+WRITER_CONFLICT = "此会话被另一个 Codex 客户端占用，本条消息尚未发送。请先退出另一端打开此会话的 Codex App / CLI，再重试；也可以新建聊天继续工作。"
+
+
+def writer_conflict(error):
+    text = str(error).lower()
+    return "thread-store conflict" in text and "already has an active writer" in text
+
+
+def thread_writer_occupied(identifier):
+    # Match Codex's local writer lock namespace. Never create, delete, or retain a lock.
+    try:
+        identifier = str(uuid.UUID(identifier))
+    except (ValueError, TypeError, AttributeError):
+        return None
+    home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
+    try:
+        with (home / "thread-writer-locks" / (identifier + ".lock")).open("rb") as handle:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_SH | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return True
+            fcntl.flock(handle, fcntl.LOCK_UN)
+            return False
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return None  # Unknown is not proof of occupancy; resume remains authoritative.
 
 
 def clipped(value, limit=MAX_TEXT):
@@ -32,6 +60,20 @@ def clipped(value, limit=MAX_TEXT):
 
 class BridgeError(Exception):
     pass
+
+
+def codex_executable():
+    # SSH commands may not load the interactive shell's PATH (notably .zshrc).
+    executable = shutil.which("codex")
+    if executable:
+        return executable
+    home = Path.home()
+    for directory in (home / ".local/bin", home / ".npm-global/bin",
+                      home / "bin", Path("/opt/homebrew/bin"), Path("/usr/local/bin")):
+        executable = shutil.which("codex", path=str(directory))
+        if executable:
+            return executable
+    raise BridgeError("未找到 codex，请先在服务器安装 Codex CLI，并将其加入 PATH 或安装到 ~/.local/bin。")
 
 
 class Store:
@@ -96,6 +138,8 @@ class Store:
         # Only explicit failures known to precede turn acceptance are recoverable.
         return (request.get("action") == "send" and not result.get("ok") and
                 (result.get("error", "").startswith("thread not loaded:") or
+                 writer_conflict(result.get("error", "")) or
+                 result.get("error") == WRITER_CONFLICT or
                  result.get("error") in {"thread/items/list is not supported yet",
                      "找不到附件，请重新添加。", "附件不属于当前会话，或路径无效。",
                      "附件上传不完整或已被删除，请重新添加。", "每次最多发送 8 个附件。"}))
@@ -150,14 +194,14 @@ class Store:
 
 
 class AppServer:
-    def __init__(self, callback, executable="codex"):
+    def __init__(self, callback, executable=None):
         self.callback = callback
         self.pending = {}
         self.lock = threading.Lock()
         self.write_lock = threading.Lock()
         self.next_id = 0
         self.ready = False
-        self.process = subprocess.Popen([executable, "app-server", "--listen", "stdio://"],
+        self.process = subprocess.Popen([executable or codex_executable(), "app-server", "--listen", "stdio://"],
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=sys.stderr, text=True, bufsize=1)
         threading.Thread(target=self.read, daemon=True).start()
@@ -269,7 +313,7 @@ class Bridge:
     def status(self):
         # Some CLI releases route account/read through workspace discovery before the
         # first thread exists. The CLI's read-only login status avoids that dependency.
-        login = subprocess.run([shutil.which("codex") or "codex", "login", "status"],
+        login = subprocess.run([codex_executable(), "login", "status"],
                                capture_output=True, timeout=10)
         return {"protocol": PROTOCOL, "ready": self.rpc.ready,
                 "version": BRIDGE_VERSION,
@@ -279,6 +323,8 @@ class Bridge:
 
     def snapshot(self, identifier):
         with self.lock:
+            if identifier in self.sessions:
+                self.update_writer_occupancy(self.sessions[identifier])
             summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model", "completedTurnId", "pinned", "archived")}
                          for s in sorted(self.sessions.values(), key=lambda s: s["updatedAt"], reverse=True)[:1000]]
             projects = dict(self.projects)
@@ -425,6 +471,21 @@ class Bridge:
         return {"messages": messages[start:end],
                 "nextCursor": "legacy:" + messages[start]["id"] if start else None}
 
+    def update_writer_occupancy(self, session):
+        identifier = session["id"]
+        occupied = False if identifier in self.loaded else thread_writer_occupied(session.get("remoteThreadId", identifier))
+        if occupied is None:
+            return
+        if occupied:
+            if session["status"] != "externalOccupied":
+                session["writerPreviousStatus"] = session["status"]
+            session.update(status="externalOccupied", readOnly=True, writerOccupied=True)
+        else:
+            if session["status"] == "externalOccupied":
+                session["status"] = session.pop("writerPreviousStatus", "idle")
+            session["writerOccupied"] = False
+            session["readOnly"] = session["status"] == "externalActive"
+
     def open_session(self, request):
         identifier = request.get("sessionId")
         with self.lock:
@@ -486,6 +547,7 @@ class Bridge:
                     session["completedTurnId"] = latest["id"]
                 if latest.get("error"):
                     session["error"] = clipped(latest["error"].get("message"))
+        self.update_writer_occupancy(session)
         self.store.save(session)
         return {"id": identifier}
 
@@ -797,6 +859,9 @@ class Bridge:
         identifier = request.get("sessionId")
         with self.lock:
             session = self.session(identifier)
+            self.update_writer_occupancy(session)
+            if session.get("writerOccupied"):
+                raise BridgeError(WRITER_CONFLICT)
             if session["status"] in ACTIVE or session.get("readOnly"):
                 raise BridgeError("当前会话仍在运行或等待审批，请先完成或停止任务。")
             self.project(session["cwd"])
@@ -811,6 +876,8 @@ class Bridge:
         access = self.access_settings(request, session)
         if identifier not in self.loaded:
             self.open_session({"sessionId": identifier})
+            if session.get("writerOccupied"):
+                raise BridgeError(WRITER_CONFLICT)
             if session.get("readOnly"):
                 raise BridgeError("这个会话正在 CLI 中运行，请在 CLI 结束任务后刷新，再继续会话。")
             if session.get("needsRecreation"):
@@ -819,8 +886,15 @@ class Bridge:
                 session.pop("needsRecreation", None)
                 self.store.save(session)
             else:
-                resumed = self.rpc.request("thread/resume", {"threadId": session.get("remoteThreadId", identifier), "cwd": session["cwd"],
-                                                  **access["thread"], "excludeTurns": True})
+                try:
+                    resumed = self.rpc.request("thread/resume", {"threadId": session.get("remoteThreadId", identifier), "cwd": session["cwd"],
+                                                      **access["thread"], "excludeTurns": True})
+                except BridgeError as error:
+                    if writer_conflict(error):
+                        # Resume failed before turn/start; the user can safely retry after
+                        # the owning client releases its writer. Never steal its lease.
+                        raise BridgeError(WRITER_CONFLICT) from None
+                    raise
             session["model"] = resumed.get("model") or session.get("model")
             session["effort"] = resumed.get("reasoningEffort") or session.get("effort")
             self.loaded.add(identifier)
@@ -1098,9 +1172,7 @@ def ensure(directory, root):
             raise BridgeError("后台正在更新，请稍后重新连接。")
     except (FileNotFoundError, ConnectionRefusedError):
         pass
-    executable = shutil.which("codex")
-    if not executable:
-        raise BridgeError("未找到 codex，请先在服务器安装并登录 Codex CLI。")
+    codex_executable()
     command = [sys.executable, str(Path(__file__).resolve()), "serve"]
     if root:
         command += ["--root", root]

@@ -186,6 +186,11 @@ final class WorkspaceModel: ObservableObject {
             if restored.state == "sending" { restored.state = "unknown" }
             return restored
         }
+        if let data = UserDefaults.standard.data(forKey: pendingKey),
+           let pending = try? JSONDecoder().decode([String: JSONValue].self, from: data) {
+            let state = localSubmissions.first(where: { $0.operationID == pending["operationId"]?.string })?.state ?? "unknown"
+            showSubmission(pending, state: state)
+        }
     }
 
     private func saveOutbox() {
@@ -200,8 +205,9 @@ final class WorkspaceModel: ObservableObject {
         let details = try? JSONDecoder().decode([UploadedAttachment].self, from: JSONEncoder().encode(attachmentValues))
         if let index = localSubmissions.firstIndex(where: { $0.operationID == operation }) {
             localSubmissions[index].state = state
+            localSubmissions[index].request = request
         } else {
-            localSubmissions.append(LocalSubmission(operationID: operation, sessionID: session, text: text, state: state, attachments: details))
+            localSubmissions.append(LocalSubmission(operationID: operation, sessionID: session, text: text, state: state, attachments: details, request: request))
         }
         saveOutbox()
     }
@@ -589,9 +595,6 @@ final class WorkspaceModel: ObservableObject {
             hasUncertainSend = false
             if result.state == "accepted" { removeSentAttachments(pending) }
             if result.state == "accepted" { clearSubmittedDraft(pending) }
-            if result.state == "rejected", draft.isEmpty, pending["sessionId"]?.string == selectedID {
-                draft = pending["text"]?.string ?? ""
-            }
         } catch {
             // An unreachable/older bridge cannot prove that it is safe to send again.
         }
@@ -696,8 +699,35 @@ final class WorkspaceModel: ObservableObject {
         (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 
-    func send(retryPending: Bool = false) async {
+    var pendingSessionID: String? {
+        guard let data = UserDefaults.standard.data(forKey: pendingKey),
+              let request = try? JSONDecoder().decode([String: JSONValue].self, from: data) else { return nil }
+        return request["sessionId"]?.string
+    }
+
+    func isPendingMessage(_ messageID: String) -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: pendingKey),
+              let request = try? JSONDecoder().decode([String: JSONValue].self, from: data),
+              let operation = request["operationId"]?.string else { return false }
+        return messageID == "local:" + operation && request["sessionId"]?.string == selectedID
+    }
+
+    func retryRequest(for messageID: String) -> [String: JSONValue]? {
+        guard let submission = localSubmissions.first(where: { $0.id == messageID && $0.sessionID == selectedID }),
+              ["failed", "unknown"].contains(submission.state) else { return nil }
+        if let request = submission.request { return request }
+        // Migrate pending records from versions that did not retain per-message requests.
+        guard let data = UserDefaults.standard.data(forKey: pendingKey),
+              let request = try? JSONDecoder().decode([String: JSONValue].self, from: data),
+              request["operationId"]?.string == submission.operationID else { return nil }
+        return request
+    }
+
+    func send(retryMessageID: String? = nil) async {
         let sendServer = storageKey
+        let retryPending = retryMessageID != nil
+        let savedRetry = retryMessageID.flatMap { retryRequest(for: $0) }
+        if retryPending, savedRetry == nil { error = "找不到这条消息的重试记录，请刷新会话确认状态。"; return }
         guard let identifier = selectedID else {
             error = "请先选择一个会话。"
             return
@@ -707,12 +737,12 @@ final class WorkspaceModel: ObservableObject {
             error = "连接或工作区尚未就绪，请重新连接并准备工作区。"
             return
         }
-        if !retryPending, selected?.isRunning == true {
+        if selected?.isRunning == true, !retryPending || !isPendingMessage(retryMessageID ?? "") {
             error = "当前任务仍在运行，请等待完成或停止后再发送。"
             return
         }
-        if !retryPending, selected?.readOnly == true {
-            error = "这个会话正在 CLI 中运行，请在 CLI 完成任务并刷新后再发送。"
+        if selected?.readOnly == true {
+            error = selected?.writerOccupied == true ? "此会话被其他客户端占用，请退出另一端会话后重新检查。" : "这个会话正在 CLI 中运行，请在 CLI 完成任务并刷新后再发送。"
             return
         }
         isSending = true
@@ -721,14 +751,20 @@ final class WorkspaceModel: ObservableObject {
             try self.validateAccessMode()
             if !retryPending { await self.reconcilePendingSend() }
             let request: [String: JSONValue]
-            if let data = UserDefaults.standard.data(forKey: self.pendingKey) {
-                guard retryPending else {
-                    throw ConnectionError.message("上一条消息的结果仍待确认。请点击“重试上一条消息”，确认后再发送新草稿。")
+            if let savedRetry {
+                if let data = UserDefaults.standard.data(forKey: self.pendingKey) {
+                    let pending = try JSONDecoder().decode([String: JSONValue].self, from: data)
+                    guard pending["operationId"]?.string == savedRetry["operationId"]?.string else {
+                        throw ConnectionError.message("另一条消息的结果仍待确认，请先在对应消息中处理。")
+                    }
                 }
-                request = try JSONDecoder().decode([String: JSONValue].self, from: data)
+                request = savedRetry
                 guard request["sessionId"]?.string == identifier else {
                     throw ConnectionError.message("另一会话有待确认的发送，请先切回该会话处理。")
                 }
+                UserDefaults.standard.set(try JSONEncoder().encode(request), forKey: self.pendingKey)
+            } else if UserDefaults.standard.data(forKey: self.pendingKey) != nil {
+                throw ConnectionError.message("上一条消息的结果仍待确认，请在对应消息中点击重试。")
             } else {
                 guard !self.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !self.attachments.isEmpty else { return }
                 var fields: [String: JSONValue] = ["action": .string("send"), "sessionId": .string(identifier),
@@ -744,7 +780,7 @@ final class WorkspaceModel: ObservableObject {
             }
             self.hasUncertainSend = true
             self.showSubmission(request, state: "sending")
-            self.clearSubmittedDraft(request)
+            if !retryPending { self.clearSubmittedDraft(request) }
             do {
                 let _: JSONValue = try await self.request(request)
                 self.showSubmission(request, state: "accepted")
@@ -795,6 +831,7 @@ final class WorkspaceModel: ObservableObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
+        if !isSending { await reconcilePendingSend() }
         let requestedID = selectedID
         var fields = ["action": JSONValue.string("snapshot")]
         if let requestedID { fields["sessionId"] = .string(requestedID) }
@@ -814,7 +851,7 @@ final class WorkspaceModel: ObservableObject {
         acknowledgeVisibleCompletion()
         if let selected {
             let known = Set(selected.messages.map(\.id))
-            localSubmissions.removeAll { $0.sessionID == selected.id && known.contains($0.id) }
+            localSubmissions.removeAll { $0.sessionID == selected.id && known.contains($0.id) && $0.state == "accepted" }
             saveOutbox()
         }
         if !snapshot.ready {

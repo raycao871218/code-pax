@@ -1,11 +1,60 @@
 import json
 import hashlib
+import fcntl
+import os
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch, Mock
 
-from bridge import Bridge, BridgeError, ensure, BRIDGE_VERSION, PROTOCOL
+from bridge import Bridge, BridgeError, codex_executable, ensure, thread_writer_occupied, BRIDGE_VERSION, PROTOCOL
+
+
+class WriterProbeTests(unittest.TestCase):
+    def test_existing_file_is_not_occupancy_and_probe_never_removes_or_creates_locks(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODEX_HOME": directory}):
+            identifier = "01a17db8-452d-7e60-9d2c-325fabffe2c7"
+            lock = Path(directory) / "thread-writer-locks" / (identifier + ".lock")
+            self.assertFalse(thread_writer_occupied(identifier))
+            self.assertFalse(lock.parent.exists())
+            lock.parent.mkdir()
+            lock.write_bytes(b"preserve")
+            with lock.open("rb") as owner:
+                fcntl.flock(owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.assertTrue(thread_writer_occupied(identifier))
+                self.assertTrue(thread_writer_occupied(identifier))
+            self.assertFalse(thread_writer_occupied(identifier))
+            self.assertEqual(lock.read_bytes(), b"preserve")
+            self.assertIsNone(thread_writer_occupied("../../invalid"))
+
+
+class CodexDiscoveryTests(unittest.TestCase):
+    def test_finds_user_install_with_minimal_ssh_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            executable = home / ".local/bin/codex"
+            executable.parent.mkdir(parents=True)
+            executable.write_text("#!/bin/sh\nexit 0\n")
+            executable.chmod(0o700)
+            with patch("bridge.Path.home", return_value=home), patch.dict(os.environ, {"PATH": "/usr/bin:/bin"}):
+                self.assertEqual(codex_executable(), str(executable))
+                executable.chmod(0o600)
+                # A file that cannot execute must not count as an installation.
+                try:
+                    found = codex_executable()
+                except BridgeError:
+                    found = None
+                self.assertNotEqual(found, str(executable))
+
+    def test_path_install_takes_precedence(self):
+        with patch("bridge.shutil.which", return_value="/custom/bin/codex") as lookup:
+            self.assertEqual(codex_executable(), "/custom/bin/codex")
+            lookup.assert_called_once_with("codex")
+
+    def test_missing_cli_reports_install_guidance(self):
+        with patch("bridge.shutil.which", return_value=None):
+            with self.assertRaisesRegex(BridgeError, "~/.local/bin"):
+                codex_executable()
 
 
 class EnsureUpgradeTests(unittest.TestCase):
@@ -653,6 +702,30 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual([m["id"] for m in selected["messages"]], ["cli-user", "cli-reply"])
         self.assertTrue(selected["historyTruncated"])
 
+    def test_open_detects_idle_writer_before_send_and_snapshot_recovers_when_released(self):
+        self.import_history()
+        with patch("bridge.thread_writer_occupied", return_value=True):
+            self.bridge.open_session({"sessionId": "cli-history"})
+            selected = self.bridge.snapshot("cli-history")["selected"]
+            self.assertEqual(selected["status"], "externalOccupied")
+            self.assertTrue(selected["readOnly"])
+            self.assertTrue(selected["writerOccupied"])
+            self.assertFalse(any(m in {"thread/resume", "turn/start"} for m, _ in self.bridge.rpc.calls))
+            request = {"action": "send", "sessionId": "cli-history", "text": "hello", "operationId": "occupied-preflight"}
+            self.assertFalse(self.bridge.dispatch(request)["ok"])
+            self.assertEqual(self.bridge.store.operation_status(request)["state"], "rejected")
+        with patch("bridge.thread_writer_occupied", return_value=False):
+            selected = self.bridge.snapshot("cli-history")["selected"]
+            self.assertEqual(selected["status"], "completed")
+            self.assertFalse(selected["readOnly"])
+            self.assertTrue(self.bridge.dispatch(request)["ok"])
+
+    def test_bridge_owned_writer_is_not_misclassified_as_external(self):
+        identifier = self.create()
+        with patch("bridge.thread_writer_occupied", return_value=True) as probe:
+            self.assertFalse(self.bridge.snapshot(identifier)["selected"]["readOnly"])
+            probe.assert_not_called()
+
     def test_custom_title_survives_catalog_and_open(self):
         self.import_history()
         self.bridge.session_metadata({"sessionId": "cli-history", "title": "My title", "pinned": True})
@@ -696,6 +769,50 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(resume["sandbox"], "danger-full-access")
         turn = next(p for m, p in self.bridge.rpc.calls if m == "turn/start")
         self.assertEqual(turn["sandboxPolicy"], {"type": "dangerFullAccess"})
+
+    def test_writer_conflict_is_rejected_before_send_and_retry_preserves_thread(self):
+        self.import_history()
+        original = self.bridge.rpc.request
+
+        def occupied(method, params):
+            if method == "thread/resume":
+                raise BridgeError("thread-store conflict: thread cli-history already has an active writer")
+            return original(method, params)
+
+        request = {"action": "send", "sessionId": "cli-history", "text": "continue", "operationId": "writer-conflict-retry"}
+        self.bridge.rpc.request = occupied
+        result = self.bridge.dispatch(request)
+        self.assertFalse(result["ok"])
+        self.assertIn("本条消息尚未发送", result["error"])
+        self.assertEqual(self.bridge.store.operation_status(request)["state"], "rejected")
+        self.assertNotIn("cli-history", self.bridge.loaded)
+        self.assertFalse(any(m in {"turn/start", "thread/start", "thread/fork"} for m, _ in self.bridge.rpc.calls))
+        self.assertFalse(any(m["text"] == "continue" for m in self.bridge.sessions["cli-history"]["messages"]))
+        self.bridge.rpc.request = original
+        self.assertTrue(self.bridge.dispatch(request)["ok"])
+        self.assertTrue(self.bridge.dispatch(request)["ok"])
+        turns = [p for m, p in self.bridge.rpc.calls if m == "turn/start"]
+        self.assertEqual(len(turns), 1)
+        self.assertEqual(turns[0]["threadId"], "cli-history")
+
+    def test_cached_legacy_writer_conflict_is_recoverable_but_unknown_failure_is_not(self):
+        self.import_history()
+        request = {"action": "send", "sessionId": "cli-history", "text": "continue", "operationId": "legacy-writer-conflict"}
+
+        def rejected():
+            raise BridgeError("thread-store conflict: thread cli-history already has an active writer")
+
+        self.bridge.store.operation(request, rejected)
+        self.assertEqual(self.bridge.store.operation_status(request)["state"], "rejected")
+        self.assertTrue(self.bridge.dispatch(request)["ok"])
+        unknown = dict(request, operationId="writer-unknown-result")
+
+        def timeout():
+            raise BridgeError("Codex 请求超时")
+
+        self.bridge.store.operation(unknown, timeout)
+        self.assertEqual(self.bridge.store.operation_status(unknown)["state"], "unknown")
+        self.assertFalse(self.bridge.dispatch(unknown)["ok"])
 
     def test_legacy_item_history_pages_without_resuming(self):
         self.import_history()

@@ -202,6 +202,7 @@ struct LocalSubmission: Codable, Identifiable {
     let text: String
     var state: String
     var attachments: [UploadedAttachment]? = nil
+    var request: [String: JSONValue]? = nil
     var id: String { "local:" + operationID }
     var message: CodexMessage { CodexMessage(id: id, kind: "userMessage", text: text, status: state, attachments: attachments) }
 }
@@ -271,6 +272,7 @@ struct CodexSession: Decodable, Identifiable {
     let error: String?
     let historyTruncated: Bool
     let readOnly: Bool?
+    var writerOccupied: Bool? = nil
     let model: String?
     let effort: String?
     let accessMode: String?
@@ -321,6 +323,7 @@ func sessionStatus(_ value: String) -> String {
     case "interrupted": return "已中断"
     case "unknown": return "结果待确认"
     case "externalActive": return "CLI 中运行 · 仅查看"
+    case "externalOccupied": return "其他客户端占用 · 仅查看"
     default: return "就绪"
     }
 }

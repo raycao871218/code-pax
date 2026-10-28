@@ -2,6 +2,56 @@ import XCTest
 @testable import CodePax
 
 final class ConnectionTests: XCTestCase {
+    @MainActor
+    func testAutomaticReconnectOnlyWhileConversationIsInForeground() async {
+        let model = ConnectionModel()
+        model.profile.host = ""
+        XCTAssertFalse(model.allowsAutomaticReconnect)
+        model.foregroundChanged(true, workspaceVisible: false)
+        await model.connect(automatically: true)
+        XCTAssertNil(model.errorMessage)
+        XCTAssertFalse(model.isBusy)
+        model.foregroundChanged(true, workspaceVisible: true)
+        XCTAssertTrue(model.allowsAutomaticReconnect)
+        model.foregroundChanged(false, workspaceVisible: true)
+        XCTAssertFalse(model.allowsAutomaticReconnect)
+        model.foregroundChanged(true, workspaceVisible: true)
+        XCTAssertTrue(model.allowsAutomaticReconnect)
+        model.foregroundChanged(true, workspaceVisible: false)
+        XCTAssertFalse(model.allowsAutomaticReconnect)
+        await model.connect(automatically: true)
+        XCTAssertNil(model.errorMessage)
+    }
+
+    @MainActor
+    func testSavedCardKeepsEnteredPasswordOnlyForTheSameServer() async throws {
+        let defaults = UserDefaults.standard
+        let keys = ["savedServers", "selectedServerID", "automaticReconnectEnabled", "lastConnectedServerID"]
+        let original = keys.map { defaults.object(forKey: $0) }
+        defer {
+            for (key, value) in zip(keys, original) {
+                if let value { defaults.set(value, forKey: key) }
+                else { defaults.removeObject(forKey: key) }
+            }
+        }
+        defaults.set(false, forKey: "automaticReconnectEnabled")
+        var saved = ServerProfile()
+        saved.host = "card-test.invalid"
+        saved.username = "test"
+        defaults.set(try JSONEncoder().encode([saved]), forKey: "savedServers")
+        defaults.set(saved.id, forKey: "selectedServerID")
+        let model = ConnectionModel()
+        model.password = "in-memory-test-password"
+        await model.selectServer(saved.id)
+        XCTAssertEqual(model.password, "in-memory-test-password")
+        // An edited endpoint must never reuse a password belonging to another host.
+        model.profile.host = "different-host.invalid"
+        model.password = "another-test-password"
+        await model.selectServer(saved.id)
+        XCTAssertEqual(model.profile.host, saved.host)
+        XCTAssertTrue(model.password.isEmpty)
+    }
+
     func testLegacyProfileMigratesWithoutPassword() throws {
         let data = Data(#"{"host":"10.10.0.172","port":"22","username":"developer"}"#.utf8)
         let profile = try JSONDecoder().decode(ServerProfile.self, from: data)

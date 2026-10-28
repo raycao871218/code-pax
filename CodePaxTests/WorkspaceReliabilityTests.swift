@@ -3,6 +3,54 @@ import UIKit
 @testable import CodePax
 
 final class WorkspaceReliabilityTests: XCTestCase {
+    @MainActor
+    func testMessageRetryRestoresOriginalRequestAndKeepsNewDraftSeparate() async throws {
+        let connection = ConnectionModel()
+        connection.profile.host = "retry-test-" + UUID().uuidString + ".invalid"
+        let key = "workspace.\(connection.profile.endpoint).\(connection.profile.username)"
+        let defaults = UserDefaults.standard
+        defer {
+            for suffix in [".outbox", ".pending", ".selection"] { defaults.removeObject(forKey: key + suffix) }
+        }
+        let suite = "retry-draft-" + UUID().uuidString
+        let draftDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { draftDefaults.removePersistentDomain(forName: suite) }
+        let original: [String: JSONValue] = ["action": .string("send"), "sessionId": .string("first"),
+            "operationId": .string("original-operation"), "text": .string("原消息"),
+            "model": .string("original-model"), "effort": .string("high"),
+            "attachments": .array([.string("original-attachment")])]
+        let submission = LocalSubmission(operationID: "original-operation", sessionID: "first", text: "原消息",
+                                         state: "failed", request: original)
+        defaults.set(try JSONEncoder().encode([submission]), forKey: key + ".outbox")
+        let model = WorkspaceModel(connection: connection, defaults: draftDefaults)
+        model.connectionChanged()
+        await model.select("first")
+        model.draft = "正在编辑的新草稿"
+        XCTAssertEqual(model.retryRequest(for: submission.id), original)
+        XCTAssertEqual(model.draft, "正在编辑的新草稿")
+        XCTAssertNil(model.retryRequest(for: "local:another-operation"))
+        await model.select("second")
+        XCTAssertNil(model.retryRequest(for: submission.id))
+        await model.select("first")
+        XCTAssertEqual(model.draft, "正在编辑的新草稿")
+        // Older outboxes can recover the exact operation from their pending record.
+        let legacy = LocalSubmission(operationID: "original-operation", sessionID: "first", text: "原消息", state: "unknown")
+        defaults.set(try JSONEncoder().encode([legacy]), forKey: key + ".outbox")
+        defaults.set(try JSONEncoder().encode(original), forKey: key + ".pending")
+        let restored = WorkspaceModel(connection: connection, defaults: draftDefaults)
+        restored.connectionChanged()
+        await restored.select("first")
+        XCTAssertEqual(restored.retryRequest(for: submission.id), original)
+        XCTAssertTrue(restored.isPendingMessage(submission.id))
+        XCTAssertFalse(restored.isPendingMessage("local:another-operation"))
+        defaults.removeObject(forKey: key + ".outbox")
+        let pendingOnly = WorkspaceModel(connection: connection, defaults: draftDefaults)
+        pendingOnly.connectionChanged()
+        await pendingOnly.select("first")
+        XCTAssertEqual(pendingOnly.localSubmissions.first?.id, submission.id)
+        XCTAssertEqual(pendingOnly.retryRequest(for: submission.id), original)
+    }
+
     func testDraftsAreIsolatedByServerAndSessionAndSurviveRecreation() throws {
         let suite = "draft-test-" + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

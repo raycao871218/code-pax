@@ -171,32 +171,22 @@ struct ConnectionView: View {
             field("SSH 密码") {
                 SecureField("SSH 密码", text: $model.password)
                     .textContentType(.password)
-                    .onSubmit { Task { await model.connect() } }
+                    .onSubmit { saveServer() }
             }
             Toggle("记住这台服务器的密码", isOn: Binding(get: { model.profile.rememberPassword }, set: model.setRememberPassword))
                 .disabled(model.isBusy || model.isConnected)
             Text(model.profile.rememberPassword ? "密码保存到本机钥匙串，不写入连接配置，也不通过 iCloud 同步。" : "密码只保留在内存中，不保存到设备存储。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Button("保存服务器设置") { model.saveServer(); if model.errorMessage == nil { showEditor = false } }
-                .disabled(model.isBusy || model.isConnected)
-            Button {
-                Task {
-                    if model.isConnected { await model.disconnect() }
-                    else { await model.connect() }
-                }
-            } label: {
-                HStack {
-                    if model.isBusy { ProgressView().tint(.white) }
-                    Text(model.isBusy ? "连接处理中…" : model.isConnected ? "断开连接" : "连接服务器")
-                        .fontWeight(.semibold)
-                }
-                .frame(maxWidth: .infinity, minHeight: 36)
+            Button(action: saveServer) {
+                Text("保存服务器设置").fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, minHeight: 36)
             }
             .buttonStyle(.borderedProminent)
-            .tint(model.isConnected ? .gray : theme.actionFill)
-            .disabled(model.isBusy)
-            .accessibilityIdentifier("connectButton")
+            .tint(theme.actionFill)
+            .disabled(model.isBusy || model.isConnected)
+            .accessibilityIdentifier("saveServerButton")
+            Text("保存后，点击服务器卡片连接。").font(.caption).foregroundStyle(.secondary)
             Button("移除当前地址的主机指纹", role: .destructive) {
                 showForgetConfirmation = true
             }
@@ -207,6 +197,12 @@ struct ConnectionView: View {
         .background(theme.isCompanion ? theme.card : Color(.systemBackground), in: RoundedRectangle(cornerRadius: 20))
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
+    }
+
+    private func saveServer() {
+        guard !model.isBusy, !model.isConnected else { return }
+        model.saveServer()
+        if model.errorMessage == nil { showEditor = false }
     }
 
     private var statusCard: some View {

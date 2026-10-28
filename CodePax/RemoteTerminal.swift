@@ -259,7 +259,15 @@ struct RemoteTerminalScreen: View {
                     }
                     ToolbarItem(placement: .confirmationAction) { Button("收起") { _ = model.terminal.resignFirstResponder(); dismiss() } }
                 }
-        }.onAppear { model.startIfNeeded(directory: workingDirectory) }
+        }.task {
+            model.startIfNeeded(directory: workingDirectory)
+            // Sheet presentation may attach the retained terminal after this task starts.
+            for _ in 0..<20 {
+                guard !Task.isCancelled else { return }
+                if model.terminal.window != nil, model.terminal.becomeFirstResponder() { return }
+                do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
+            }
+        }
     }
     private func key(_ label: String, _ value: String) -> some View {
         Button(label) { model.sendKey(value) }.font(.system(.caption, design: .monospaced))

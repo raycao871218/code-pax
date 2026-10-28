@@ -17,7 +17,12 @@ struct RootView: View {
                     .interactiveDismissDisabled(!connection.isConnected)
             }
             .task { await connection.maintainConnection() }
-            .onChange(of: scenePhase, initial: true) { _, phase in connection.foregroundChanged(phase == .active) }
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                connection.foregroundChanged(phase == .active, workspaceVisible: !showConnections)
+            }
+            .onChange(of: showConnections, initial: true) { _, showingHome in
+                connection.foregroundChanged(scenePhase == .active, workspaceVisible: !showingHome)
+            }
             .onChange(of: connection.isConnected) { _, connected in
                 if connected { showConnections = false }
             }
@@ -32,7 +37,6 @@ struct WorkspaceView: View {
     @ObservedObject var connection: ConnectionModel
     @StateObject private var model: WorkspaceModel
     @State private var showProjects = false
-    @State private var clearPending = false
     @State private var restartBackend = false
     @State private var expandedProjects: Set<String> = []
     @State private var historySession: CodexSession?
@@ -258,11 +262,6 @@ struct WorkspaceView: View {
                 }
             }
         }
-        .confirmationDialog("清除本机待确认的发送记录？", isPresented: $clearPending, titleVisibility: .visible) {
-            Button("已核实服务器状态，清除重试记录", role: .destructive) { model.discardPending() }
-        } message: {
-            Text("这不会停止服务器上的任务。清除后再次发送相同任务可能重复执行，请先刷新并检查会话。")
-        }
         .confirmationDialog("重启 Codex 后台？", isPresented: $restartBackend, titleVisibility: .visible) {
             Button("重启后台并应用代理设置") { Task { await model.restart() } }
         } message: {
@@ -278,7 +277,7 @@ struct WorkspaceView: View {
             Task { _ = await model.updateSession(session.id, pinned: session.pinned != true) }
         }.disabled(!model.isPrepared || !model.supportsSessionManagement || model.isBusy)
         Button("归档聊天", systemImage: "archivebox") { Task { _ = await model.updateSession(session.id, archived: true) } }
-            .disabled(!model.isPrepared || !model.supportsSessionManagement || model.isBusy || ["inProgress", "starting", "waiting", "externalActive", "unknown"].contains(session.status))
+            .disabled(!model.isPrepared || !model.supportsSessionManagement || model.isBusy || ["inProgress", "starting", "waiting", "externalActive", "externalOccupied", "unknown"].contains(session.status))
     }
 
     private var readingSessionID: String? {
@@ -326,6 +325,21 @@ struct WorkspaceView: View {
         let messages = theme.isCompanion ? CompanionReplyPolicy.displayedMessages(model.messages(for: session), state: companionState) : model.messages(for: session)
         let latestReplyID = CompanionReplyPolicy.latestReplyID(in: messages)
         return VStack(spacing: 0) {
+            if model.hasUncertainSend, let pendingSession = model.pendingSessionID, pendingSession != session.id {
+                HStack {
+                    Text("另一会话有消息待确认，请先处理该条消息。").font(.caption).foregroundStyle(.orange)
+                    Spacer()
+                    Button("查看消息") { Task { await model.select(pendingSession) } }.disabled(model.isBusy)
+                }.padding(12).background(theme.card)
+            }
+            if session.readOnly == true {
+                HStack {
+                    Label(session.writerOccupied == true ? "此会话被其他 Codex 客户端占用。请退出另一端会话后重新检查。" : "此会话正在其他客户端运行，目前仅供查看。", systemImage: "lock.fill")
+                        .font(.caption).foregroundStyle(.orange)
+                    Spacer()
+                    Button("重新检查") { Task { await model.reloadCurrent() } }.disabled(model.isBusy)
+                }.padding(12).background(theme.card)
+            }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 18) {
                     if session.historyTruncated {
@@ -371,17 +385,6 @@ struct WorkspaceView: View {
     private func composer(_ session: CodexSession) -> some View {
         let control = ComposerState.resolve(status: session.status, draft: model.draft.isEmpty && !model.attachments.isEmpty ? "附件" : model.draft, sending: model.isSending, pending: model.hasUncertainSend)
         return VStack(alignment: .leading, spacing: 10) {
-            if model.hasUncertainSend {
-                Text("上一条消息的发送结果待确认。你可以继续编辑草稿；确认上一条结果后即可发送新消息。重试只会处理之前保存的消息。")
-                    .font(.caption).foregroundStyle(.orange)
-                Button("重试上一条消息") { Task { await model.send(retryPending: true) } }
-                    .disabled(model.isBusy || !model.isPrepared || session.readOnly == true)
-                Button("已检查会话，清除本机重试记录") { clearPending = true }.font(.caption)
-            }
-            if session.readOnly == true {
-                Text("这个会话正在 CLI 中运行，目前仅供查看。请在 CLI 结束任务后刷新，再继续对话。")
-                    .font(.caption).foregroundStyle(.orange)
-            }
             AttachmentTray(model: model)
             HStack(alignment: .bottom, spacing: 8) {
                 ComposerTextInput(text: $model.draft, canSubmit: model.canSubmit, canAttach: model.canAddAttachments, receiveAttachments: { model.attachProviders($0) }) {
@@ -656,6 +659,7 @@ private struct MessageCard: View {
     let message: CodexMessage
     @ObservedObject var model: WorkspaceModel
     let sessionID: String
+    @State private var clearPending = false
     private var deliveryColor: Color {
         switch message.status {
         case "sending", "unknown": return .orange
@@ -696,8 +700,27 @@ private struct MessageCard: View {
                     Label(deliveryLabel, systemImage: message.status == "sending" ? "clock" :
                             message.status == "unknown" || message.status == "failed" ? "exclamationmark.circle" : "checkmark")
                         .font(.caption2).foregroundStyle(deliveryColor).padding(.trailing, 8)
+                    if model.retryRequest(for: message.id) != nil {
+                        HStack(spacing: 12) {
+                            Button(message.status == "failed" ? "重试" : "确认并重试") {
+                                Task { await model.send(retryMessageID: message.id) }
+                            }.disabled(model.isBusy || !model.isPrepared || model.isSending || model.selected?.readOnly == true ||
+                                       (model.selected?.isRunning == true && !model.isPendingMessage(message.id)))
+                            if model.isPendingMessage(message.id) {
+                                Button("清除待确认记录") { clearPending = true }
+                            }
+                        }.font(.caption)
+                        if message.status == "unknown" {
+                            Text("发送结果待确认。重试会核对原消息，不会发送输入框中的新草稿。")
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
                 }
-            }
+            }.confirmationDialog("清除这条消息的待确认记录？", isPresented: $clearPending, titleVisibility: .visible) {
+                Button("已核实服务器状态，清除记录", role: .destructive) {
+                    if model.isPendingMessage(message.id) { model.discardPending() }
+                }
+            } message: { Text("这不会停止服务器上的任务。请先检查会话，避免重复执行。") }
         } else if message.kind == "plan" {
             DisclosureGroup("执行计划") {
                 RichMarkdown(text: message.text).equatable().padding(.top, 8)

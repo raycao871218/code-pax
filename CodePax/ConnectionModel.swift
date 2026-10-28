@@ -28,6 +28,8 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
     private var reconnectAccount: String?
     private var sessionPassword: String?
     private var foreground = true
+    private var workspaceVisible = false
+    var allowsAutomaticReconnect: Bool { foreground && workspaceVisible }
     private var networkAvailable = true
     private var reconnectSchedule = ReconnectSchedule()
     private let pathMonitor = NWPathMonitor()
@@ -98,7 +100,7 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
         #endif
         defer { pathMonitor.cancel() }
         while !Task.isCancelled {
-            if foreground, networkAvailable, willReconnect, reconnectAccount == profile.credentialAccount,
+            if allowsAutomaticReconnect, networkAvailable, willReconnect, reconnectAccount == profile.credentialAccount,
                !isBusy, !isConnected, trustRequest == nil, reconnectSchedule.isDue() {
                 await connect(automatically: true)
             }
@@ -106,9 +108,10 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
         }
     }
 
-    func foregroundChanged(_ active: Bool) {
+    func foregroundChanged(_ active: Bool, workspaceVisible: Bool) {
         foreground = active
-        guard active else { return }
+        self.workspaceVisible = workspaceVisible
+        guard allowsAutomaticReconnect else { return }
         reconnectSchedule.retryNow()
         if isConnected { Task { await self.checkConnection() } }
     }
@@ -183,6 +186,7 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
 
     func selectServer(_ id: String) async {
         guard !isBusy, let saved = savedServers.first(where: { $0.id == id }) else { return }
+        let enteredPassword = profile.credentialAccount == saved.credentialAccount ? password : ""
         await disconnect()
         profile = saved
         ServerProfile.saveServers(savedServers, selectedID: id)
@@ -190,6 +194,7 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
         serverInfo = ""
         status = "已选择 \(saved.displayName)"
         restorePassword()
+        if password.isEmpty { password = enteredPassword }
     }
 
     func addServer() async {
@@ -203,7 +208,7 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
         password = ""
         serverInfo = ""
         errorMessage = nil
-        status = "填写新服务器后保存或连接"
+        status = "填写新服务器后保存，再点击卡片连接"
     }
 
     func deleteServer() async {
@@ -326,6 +331,7 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
     }
 
     func connect(automatically: Bool = false) async {
+        guard !automatically || allowsAutomaticReconnect else { return }
         guard !isBusy, !isConnected else { return }
         let attempt = UUID()
         connectionAttemptID = attempt
