@@ -60,6 +60,27 @@ struct BridgeStatus: Decodable {
     let accountType: String
     let version: String?
     let upgradePending: Bool?
+    let codexReady: Bool?
+    let capabilities: [String]?
+    let agents: [CLIAgent]?
+}
+
+struct CLIAgent: Decodable, Identifiable {
+    let id: String
+    let title: String
+    let available: Bool
+    let command: String
+}
+
+struct TerminalChunk: Decodable {
+    let data: String
+    let offset: Int
+    let nextOffset: Int
+    let reset: Bool
+    let hasMore: Bool
+    let epoch: String
+    let status: String
+    let replay: Bool
 }
 
 struct DirectoryEntry: Decodable, Identifiable { let id: String; let name: String }
@@ -78,6 +99,9 @@ struct CodexSessionSummary: Decodable, Identifiable {
     let updatedAt: Double
     let origin: String?
     let model: String?
+    let agent: String?
+    let mode: String?
+    var agentTitle: String { cliAgentTitle(agent ?? "codex") }
 }
 
 struct CodexMessage: Decodable, Identifiable {
@@ -114,6 +138,10 @@ struct CodexSession: Decodable, Identifiable {
     let readOnly: Bool?
     let model: String?
     let effort: String?
+    let agent: String?
+    let mode: String?
+    var isTerminal: Bool { mode == "terminal" }
+    var agentTitle: String { cliAgentTitle(agent ?? "codex") }
     var isRunning: Bool { ["inProgress", "waiting", "starting"].contains(status) }
 }
 
@@ -122,6 +150,19 @@ struct CodexSnapshot: Decodable {
     let selected: CodexSession?
     let ready: Bool
     let projects: [CodexProject]?
+    let codexReady: Bool?
+}
+
+func cliAgentTitle(_ agent: String) -> String {
+    switch agent {
+    case "codex": return "Codex"
+    case "claude": return "Claude Code"
+    case "gemini": return "Gemini CLI"
+    case "opencode": return "OpenCode"
+    case "copilot": return "GitHub Copilot"
+    case "custom": return "自定义 CLI"
+    default: return agent
+    }
 }
 
 struct CodexProject: Decodable, Identifiable { let id: String; let title: String }

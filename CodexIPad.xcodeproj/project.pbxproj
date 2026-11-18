@@ -75,6 +75,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B0E761D36C8A2DDCBB3A11FA";
 		};
+		"BCB235E0994353D4F25D0C81" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "TerminalView.swift";
+			"sourceTree" = "<group>";
+		};
+		"502D77FE2613E3A27233DE42" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BCB235E0994353D4F25D0C81";
+		};
 		"F7BB561F6168F5DA392CC3B7" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -130,6 +140,26 @@
 		"7BA53F274DAE182CE44069D5" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "94CC9F2AC0530B3EEA5E4DA0";
+		};
+		"C1C7C4E31DCC2F8670A79986" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.script.python";
+			"path" = "../backend/terminal_runtime.py";
+			"sourceTree" = "<group>";
+		};
+		"1F4B7EBF37AAE5835E708431" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "C1C7C4E31DCC2F8670A79986";
+		};
+		"E826FC2AAA451A41324E6031" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "folder";
+			"path" = "Terminal";
+			"sourceTree" = "<group>";
+		};
+		"15705C83961B33AD919286E1" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E826FC2AAA451A41324E6031";
 		};
 		"754F0FF7D05792D37EC412FC" = {
 			"isa" = "XCRemoteSwiftPackageReference";
@@ -204,10 +234,13 @@
 				"281802A1113621ECCE021D70",
 				"E0FDF51F3C98B5374294991A",
 				"B0E761D36C8A2DDCBB3A11FA",
+				"BCB235E0994353D4F25D0C81",
 				"F7BB561F6168F5DA392CC3B7",
 				"5D7F05CC38FDBBA02A03F66E",
 				"7B594B6DB375E1BF3F23CDD6",
 				"94CC9F2AC0530B3EEA5E4DA0",
+				"C1C7C4E31DCC2F8670A79986",
+				"E826FC2AAA451A41324E6031",
 			);
 			"path" = "CodexIPad";
 			"sourceTree" = "<group>";
@@ -292,8 +325,8 @@
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "4";
-				"MARKETING_VERSION" = "0.3.1";
+				"CURRENT_PROJECT_VERSION" = "5";
+				"MARKETING_VERSION" = "0.4.0";
 				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks";
 			};
 		};
@@ -309,8 +342,8 @@
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"SUPPORTS_MACCATALYST" = "NO";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "4";
-				"MARKETING_VERSION" = "0.3.1";
+				"CURRENT_PROJECT_VERSION" = "5";
+				"MARKETING_VERSION" = "0.4.0";
 				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks";
 			};
 		};
@@ -371,6 +404,7 @@
 				"D3B97ED78F2E25B7468E9941",
 				"4FDBE26FB3D52C0024030C07",
 				"F62D998D58E5F4E14278AD79",
+				"502D77FE2613E3A27233DE42",
 				"55E316644D65F19FA0281BDA",
 				"935453F433F2B6655843A15C",
 			);
@@ -391,6 +425,8 @@
 			"buildActionMask" = 2147483647;
 			"files" = (
 				"7BA53F274DAE182CE44069D5",
+				"1F4B7EBF37AAE5835E708431",
+				"15705C83961B33AD919286E1",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};

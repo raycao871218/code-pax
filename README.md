@@ -1,6 +1,29 @@
 # Codex iPad
 
-一个通过 SSH 控制远端 Linux Codex 的自用原生 iPad App。**0.3.1** 支持 CLI 历史会话、项目分组、模型选择、多服务器和可选的钥匙串密码保存。
+一个通过 SSH 控制远端 Linux 编程 CLI 的自用原生 iPad App。**0.4.0** 新增多 CLI 交互式终端，保留 Codex 的原生聊天、历史会话、模型选择与审批。
+
+## 多 CLI
+
+参考 [Orca 的聊天 / 终端双通道](https://github.com/stablyai/orca)，当前支持：
+
+| CLI | 模式 | 前提 |
+| --- | --- | --- |
+| Codex | 原生聊天、交互式终端 | 服务器安装 `codex`；聊天需完成登录 |
+| Claude Code | 交互式终端 | 服务器安装 `claude` |
+| Gemini CLI | 交互式终端 | 服务器安装 `gemini` |
+| OpenCode | 交互式终端 | 服务器安装 `opencode` |
+| GitHub Copilot CLI | 交互式终端 | 服务器安装 `copilot` |
+| 自定义 CLI，例如 Aider | 交互式终端 | 填写服务器上可执行的命令及参数 |
+
+准备工作区后，在侧栏或“添加项目 / 新建会话”中选择 CLI；未安装的预设会标出。Codex 可以选择聊天或终端，其他 CLI 使用终端。自定义命令支持带引号的参数，按 argv 直接执行，不隐式通过 shell 解释；需要 shell 功能时可显式填写 `bash -lc 'your command'`。
+
+终端由服务器的真实 PTY 承载，iPad 使用内置 xterm.js 渲染 ANSI 颜色、光标及交互菜单，不依赖在线 CDN。支持直接键盘输入、提示词粘贴并回车、Esc / Tab / Shift Tab / 方向键 / Ctrl-C / Ctrl-D，以及横竖屏尺寸同步。多行粘贴会遵循 CLI 的 bracketed paste 模式。Ctrl-C 发出中断输入，“结束 CLI”终止整个终端进程组。
+
+终端登录、模型选择、权限确认和续聊命令遵循各 CLI 自身的交互；不会自动加入跳过审批的启动参数。Codex 聊天模式继续使用现有的原生审批卡片和模型选择器。其他 CLI 暂无统一聊天卡片、自动历史导入或结构化 diff。通用终端的“运行中”表示进程仍存活，不能据此判断模型正在推理还是等待输入。
+
+终端在 App 断开后继续运行；重新选择会话会读取同一进程的输出，不会自动启动第二个 CLI。新建会话和终端输入都有持久化操作 ID，结果不确定时复用原请求重试。iPad 将待确认的新建请求和终端输入保存在仅本设备解锁可读的钥匙串，收到回执后删除。服务器回执只保存请求摘要和结果，不保存输入正文。
+
+每个终端最多保留最近 2 MiB 原始输出；进程退出时保存为后台私有目录中权限 0600 的文件，已结束会话可以在后台重启后继续查看。后台或服务器重启会中断活动终端，其尚未归档的输出不保证保留；不会自动重跑命令，需新建 CLI 会话并按该 CLI 的方式恢复任务。历史输出回放会抑制已经确认过的终端协议应答，避免重连时把旧应答作为新输入发送。
 
 ## 已实现
 
@@ -29,11 +52,12 @@
 iPad SwiftUI → SSH → Python CLI 客户端 → 私有 Unix socket
                                              ↓
                                    Python 后台 + SQLite
-                                             ↓ stdio JSON-RPC
-                                      Codex App Server
+                                      ↙              ↘
+                           stdio JSON-RPC          Linux PTY
+                           Codex App Server        各种 CLI
 ```
 
-只需要服务器已有的 SSH、Python **3.9+** 和登录完成的 Codex CLI。后台使用 Python 标准库，不开放 TCP 端口，不复制服务器模型凭证。接口按 [OpenAI 官方 App Server 文档](https://learn.chatgpt.com/docs/app-server) 接入，并在 Codex CLI **0.159.3** 上联调。
+需要服务器已有的 SSH、Python **3.9+** 和你选择的 CLI。没有安装 Codex 也可以使用其他终端 CLI；各 CLI 使用服务器上的账号配置。后台使用 Python 标准库，不开放 TCP 端口，不复制服务器模型凭证。Codex 聊天接口按 [OpenAI 官方 App Server 文档](https://learn.chatgpt.com/docs/app-server) 接入，并在 Codex CLI **0.159.3** 上联调。
 
 ## 在 Mac 上运行
 
@@ -50,11 +74,11 @@ iPad SwiftUI → SSH → Python CLI 客户端 → 私有 Unix socket
 8. 工作区会自动同步一页 CLI 历史。展开项目即可选择历史会话；点“加载更多历史会话”继续分页导入。
 9. 点“添加项目 / 新建会话”，可单独保存项目，也可直接创建新会话。侧栏可选择模型和推理强度，设置对下一次发送生效。
 
-### 从 0.2 升级
+### 从 0.2 / 0.3 升级
 
 连接时会检测正在运行的后台版本；空闲旧后台自动更新，保留工作根目录与历史。若存在运行中、待审批或结果不确定的任务，会暂缓更新并保留旧后台功能；处理完任务后点击“重新准备 / 应用后台更新”。不会为升级强制终止任务。旧单服务器配置会迁移，多台服务器的代理与会话选择分别保存。0.3.1 修复了脚本已上传但后台仍运行旧协议，导致 CLI 历史不可见、模型选择被禁用的问题。
 
-“准备工作区”会把 App 内置的 `bridge.py` 写到服务器 `~/.local/share/codex-ipad/`，并以当前 SSH 用户启动后台。无需 sudo，不改动全局 Codex 配置。该目录包含历史数据库和运行日志，权限为 0700，socket 为 0600。代理环境只应用于后台进程；更改代理后，在任务都结束时点击“重启 Codex 后台”。
+“准备工作区”会把 App 内置的 `bridge.py` 和 `terminal_runtime.py` 写到服务器 `~/.local/share/codex-ipad/`，并以当前 SSH 用户启动后台。无需 sudo，不改动全局 CLI 配置。该目录包含历史数据库和运行日志，权限为 0700，socket 为 0600。代理环境应用于后台及其启动的 CLI 进程；更改代理后，在所有任务和终端都结束时点击“重启后台”。旧后台有活动任务时仍保留旧功能，新终端功能在空闲升级后启用。
 
 服务器重启会中断活动任务。重新准备工作区后保留历史并显示中断状态，发送新消息时用 `thread/resume` 继续会话，不会自动重跑旧任务。App 断网后需要重新建立 SSH 连接，工作区会自动准备，当前版本的后台会被复用。
 
@@ -78,7 +102,14 @@ for key in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$key" -E sha256; done
 python3 -m unittest discover -s backend -v
 ```
 
-本次验证：
+0.4.0 验证：
+
+- 在 Linux 独立临时目录运行 41 项后台测试，全部通过；包括 15 项新增测试，覆盖无 Codex 场景、真实 PTY / 控制终端、中文、工作目录、尺寸同步、输入与新建去重、断线回放、退出码、进程终止、输出归档与上限，以及原有 Codex 测试。另以四个模拟 CLI 验证真实后台进程、独立 CLI 客户端、多终端并存、活动任务保护及后台重启后的输出恢复。
+- 使用本地 Chrome 验证内置终端页面：ANSI / 中文显示、键盘输入、bracketed paste、终端协议应答、历史回放抑制、禁用输入和尺寸变化均通过；无页面 JavaScript 错误或网络请求。
+- 修改的 Swift 文件通过语法解析，Xcode 工程已重新生成。新增 XCTest 覆盖旧协议兼容和多 CLI 数据解码。
+- 服务器目前没有安装 Claude / Gemini / OpenCode / Copilot；这些预设验证了命令映射及通用 PTY 路径，尚未使用真实账号进行各 CLI 的模型任务联调。
+
+之前版本的验证：
 
 - 26 项后台测试在 Linux 上全部通过，新增空闲后台升级、活动与不确定任务保护、升级竞争保护及版本复用测试；包括历史目录过滤、只读浏览、历史分页、外部运行会话保护、原会话续聊、模型分页和推理强度校验、空项目持久化，以及之前的审批和断线保护。
 - 在 172 的独立 `/tmp` 测试项目中，真实完成了会话创建、任务发送、回复、命令审批、文件修改审批和 diff 读取。测试使用 NAS Mihomo 代理；未修改业务项目或全局 Codex 配置。
@@ -99,12 +130,12 @@ xcodebuild -project CodexIPad.xcodeproj -scheme CodexIPad \
   -destination 'platform=iOS Simulator,id=YOUR_SIMULATOR_ID' CODE_SIGNING_ALLOWED=NO test
 ```
 
-之前版本的打包已由用户确认。0.3.1 的新增 iOS 代码尚未在本机进行 Xcode 编译、XCTest 执行或 iPad 真机端到端验证；以上服务器测试不等于 App 构建通过。更新后请在 Mac 上重新构建并运行。
+之前版本的打包已由用户确认。0.4.0 尚未进行 Xcode 编译、XCTest 执行或 iPad 真机端到端验证；以上语法、服务器和浏览器测试不等于 App 构建通过。更新后请在 Mac 上重新构建并运行。
 
 ## 范围与限制
 
 - 第一版的目录浏览默认限制在 SSH 用户 Home 内，可在服务器手动启动 `python3 bridge.py ensure --root /your/projects` 指定其他根目录。该限制约束 App 目录选择，不是 SSH 账号权限隔离。
-- Codex 使用 `workspace-write` 沙箱及 `untrusted` 审批策略，审批交给用户。第一版不提供会话级放行或自动批准。
+- Codex 聊天使用 `workspace-write` 沙箱及 `untrusted` 审批策略，审批交给用户。终端模式的权限与沙箱由所选 CLI 的配置决定，不继承 Codex 聊天策略；App 不自动放行。
 - 尚无私钥导入、自动 SSH 重连、推送通知和文件编辑器。
 - 当前聊天显示最近 40 条消息；点右上角历史按钮分页浏览早期消息。单条最多约 12000 字符，过长会标明截断。侧栏最多显示最近 1000 条已同步会话，归档会话暂不显示。
 - 历史导入只包含项目目录仍存在且位于工作根目录内的会话。使用不同 SSH 用户或不同 Codex Home 时，历史也不同。
@@ -127,3 +158,5 @@ python3 scripts/generate_project.py
 若在 Xcode 中手动修改工程配置，请同步修改生成脚本，以免再次生成时覆盖配置。工程暂不包含开发者 Team 或签名凭据；`work/` 和用户本地 Xcode 设置已加入忽略列表。
 
 SSH 库：[Citadel](https://github.com/orlandos-nl/Citadel)，基于 SwiftNIO SSH。第三方代码按其各自许可证使用。
+
+终端渲染：[xterm.js](https://github.com/xtermjs/xterm.js)，内置 `@xterm/xterm` 5.5.0 和 `@xterm/addon-fit` 0.10.0，MIT 许可证随资源打包。

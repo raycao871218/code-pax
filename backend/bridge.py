@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Personal Codex bridge. SSH is the transport; no TCP listener or external deps."""
+"""Personal CLI bridge. SSH is the transport; no TCP listener or external deps."""
 import argparse
 import base64
 import concurrent.futures
@@ -17,8 +17,10 @@ import threading
 import time
 import uuid
 
-PROTOCOL = 2
-BRIDGE_VERSION = "0.3.1"
+from terminal_runtime import Terminal, agent_catalog, launch_command, read_archive
+
+PROTOCOL = 3
+BRIDGE_VERSION = "0.4.0"
 MAX_WIRE = 2 * 1024 * 1024
 MAX_TEXT = 12000
 ACTIVE = {"inProgress", "waiting", "starting"}
@@ -31,6 +33,17 @@ def clipped(value, limit=MAX_TEXT):
 
 class BridgeError(Exception):
     pass
+
+
+class UnavailableCodex:
+    ready = False
+    process = None
+
+    def __init__(self, error):
+        self.error = str(error)
+
+    def request(self, *_args, **_kwargs):
+        raise BridgeError("Codex 聊天不可用：" + self.error)
 
 
 class Store:
@@ -168,14 +181,21 @@ class Bridge:
         self.models_updated_at = 0
         self.loaded = set()
         self.stopping = False
+        self.terminals = {}
         self.epoch = uuid.uuid4().hex
         for session in self.sessions.values():
             session["approvals"] = []
             if session["status"] in ACTIVE:
                 session["status"] = "interrupted"
-                session["error"] = "服务器后台已重启，原任务中断。发送新消息可继续会话。"
+                session["error"] = ("服务器后台已重启，终端已中断。请新建 CLI 会话并按 CLI 的方式恢复任务。"
+                                    if session.get("mode") == "terminal" else
+                                    "服务器后台已重启，原任务中断。发送新消息可继续会话。")
             self.store.save(session)
-        self.rpc = rpc_factory(self.on_message)
+        try:
+            self.rpc = rpc_factory(self.on_message)
+        except Exception as error:
+            # Other CLI agents remain usable when Codex is absent, outdated or not configured.
+            self.rpc = UnavailableCodex(error)
 
     def project(self, raw):
         if not isinstance(raw, str) or not raw or len(raw) > 4096:
@@ -196,16 +216,25 @@ class Bridge:
     def status(self):
         # Some CLI releases route account/read through workspace discovery before the
         # first thread exists. The CLI's read-only login status avoids that dependency.
-        login = subprocess.run([shutil.which("codex") or "codex", "login", "status"],
-                               capture_output=True, timeout=10)
-        return {"protocol": PROTOCOL, "ready": self.rpc.ready,
+        authenticated = False
+        if self.rpc.ready:
+            try:
+                login = subprocess.run([shutil.which("codex") or "codex", "login", "status"],
+                                       capture_output=True, timeout=10)
+                authenticated = login.returncode == 0
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        return {"protocol": PROTOCOL, "ready": True, "codexReady": self.rpc.ready,
+                "capabilities": ["terminal", "customCLI", "projects"] + (
+                    ["codexChat", "catalog", "models"] if self.rpc.ready else []),
+                "agents": agent_catalog(),
                 "version": BRIDGE_VERSION,
-                "root": str(self.root), "authenticated": login.returncode == 0,
-                "accountType": "服务器已有登录" if login.returncode == 0 else "尚未登录"}
+                "root": str(self.root), "authenticated": authenticated,
+                "accountType": "服务器已有登录" if authenticated else "Codex 尚未登录"}
 
     def snapshot(self, identifier):
         with self.lock:
-            summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model")}
+            summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model", "agent", "mode")}
                          for s in sorted(self.sessions.values(), key=lambda s: s["updatedAt"], reverse=True)[:1000]]
             projects = dict(self.projects)
             for summary in summaries:
@@ -217,7 +246,7 @@ class Bridge:
                 selected["historyTruncated"] = len(self.session(identifier)["messages"]) > 40 or bool(selected.get("historyCursor"))
             # Detach from shared dicts before serializing in the request handler.
             return json.loads(json.dumps({"sessions": summaries, "projects": [{"id": p, "title": t} for p, t in sorted(projects.items())], "selected": selected,
-                                         "ready": self.rpc.ready}, ensure_ascii=False))
+                                         "ready": True, "codexReady": self.rpc.ready}, ensure_ascii=False))
 
     def add_project(self, request):
         path = self.project(request.get("cwd"))
@@ -270,6 +299,8 @@ class Bridge:
         with self.lock:
             session = self.session(identifier)
             self.project(session["cwd"])
+            if session.get("mode") == "terminal":
+                return {"messages": [], "nextCursor": None}
         params = {"threadId": identifier, "limit": 40, "sortDirection": "desc"}
         if request.get("cursor"):
             params["cursor"] = request["cursor"]
@@ -288,6 +319,8 @@ class Bridge:
         with self.lock:
             session = self.session(identifier)
             self.project(session["cwd"])
+            if session.get("mode") == "terminal":
+                return {"id": identifier}
             if identifier in self.loaded:
                 return {"id": identifier}
         metadata = self.rpc.request("thread/read", {"threadId": identifier})["thread"]
@@ -360,6 +393,8 @@ class Bridge:
         with self.lock:
             if method == "bridge/disconnected":
                 for session in self.sessions.values():
+                    if session.get("mode") == "terminal":
+                        continue
                     if session["status"] in ACTIVE:
                         session["status"] = "interrupted"
                         session["error"] = "Codex 进程已退出，请重新准备工作区。"
@@ -434,6 +469,12 @@ class Bridge:
         return json.dumps(item, ensure_ascii=False)
 
     def create(self, request):
+        if request.get("mode", "chat") not in {"chat", "terminal"}:
+            raise BridgeError("不支持的会话模式。")
+        if request.get("agent", "codex") != "codex" and request.get("mode") == "chat":
+            raise BridgeError("该 CLI 请使用终端模式。")
+        if request.get("mode") == "terminal" or request.get("agent", "codex") != "codex":
+            return self.create_terminal(request)
         path = self.project(request.get("cwd"))
         settings = self.model_settings(request)
         result = self.rpc.request("thread/start", {"cwd": str(path), "approvalPolicy": "untrusted",
@@ -451,6 +492,8 @@ class Bridge:
         return {"id": identifier}
 
     def send(self, request):
+        if self.session(request.get("sessionId")).get("mode") == "terminal":
+            raise BridgeError("终端会话请使用终端输入。")
         text = request.get("text", "").strip()
         if not text or len(text) > 20000:
             raise BridgeError("消息不能为空，且不能超过 20000 个字符。")
@@ -540,11 +583,105 @@ class Bridge:
     def stop(self, request):
         with self.lock:
             session = self.session(request.get("sessionId"))
+            if session.get("mode") == "terminal":
+                terminal = self.terminals.get(session["id"])
+                if terminal is None:
+                    raise BridgeError("终端已退出。")
+                terminal.stop()
+                return {}
             identifier, turn = session["id"], session["turnId"]
             if session["status"] not in ACTIVE or not turn:
                 raise BridgeError("该会话没有可停止的任务。")
         self.rpc.request("turn/interrupt", {"threadId": identifier, "turnId": turn})
         return {}  # The actual turn/completed event determines the final state.
+
+    def create_terminal(self, request):
+        path = self.project(request.get("cwd"))
+        agent = request.get("agent", "codex")
+        argv = launch_command(agent, request.get("command"))
+        identifier = "cli-" + uuid.uuid4().hex
+        session = {"id": identifier, "title": agent + " · " + path.name, "cwd": str(path),
+                   "status": "starting", "turnId": None, "updatedAt": time.time(), "origin": "app",
+                   "messages": [], "approvals": [], "diff": "", "error": None,
+                   "agent": agent, "mode": "terminal", "readOnly": False, "terminalBase": 0}
+
+        def exited(code, stopped):
+            with self.lock:
+                terminal = self.terminals.get(identifier)
+                session["terminalBase"] = terminal.base if terminal else 0
+                session["status"] = "interrupted" if stopped else "completed" if code == 0 else "failed"
+                session["exitCode"] = code
+                session["updatedAt"] = time.time()
+                if not stopped and code != 0:
+                    session["error"] = "CLI 已退出，退出码：" + str(code) + "。请查看终端输出。"
+                self.store.save(session)
+                self.terminals.pop(identifier, None)
+
+        with self.lock:
+            self.sessions[identifier] = session
+            self.store.save(session)
+        try:
+            terminal = Terminal(self.directory, identifier, argv, path, exited)
+        except Exception as error:
+            with self.lock:
+                session["status"], session["error"] = "failed", str(error)
+                self.store.save(session)
+            raise
+        with self.lock:
+            self.terminals[identifier] = terminal
+            session["status"] = "inProgress"
+            self.store.save(session)
+        terminal.start()
+        return {"id": identifier}
+
+    def terminal_session(self, request):
+        session = self.session(request.get("sessionId"))
+        if session.get("mode") != "terminal":
+            raise BridgeError("该会话不是终端。")
+        return session
+
+    def terminal_read(self, request):
+        offset = request.get("offset", 0)
+        if type(offset) is not int or offset < 0:
+            raise BridgeError("无效的终端读取位置。")
+        reset_epoch = request.get("epoch") != self.epoch
+        if reset_epoch:
+            offset = 0
+        with self.lock:
+            session = self.terminal_session(request)
+            terminal = self.terminals.get(session["id"])
+            if terminal:
+                result = terminal.read(offset)
+            else:
+                result = read_archive(self.directory, session["id"], offset, session.get("terminalBase", 0))
+            result.update(epoch=self.epoch, status=session["status"])
+            result["reset"] = result["reset"] or reset_epoch
+            return result
+
+    def terminal_input(self, request):
+        raw = request.get("dataBase64")
+        if not isinstance(raw, str) or len(raw) > 24000:
+            raise BridgeError("无效的终端输入。")
+        try:
+            data = base64.b64decode(raw, validate=True)
+        except ValueError:
+            raise BridgeError("无效的终端输入编码。") from None
+        if not data or len(data) > 16384:
+            raise BridgeError("终端输入为空或过长（最多 16 KiB）。")
+        with self.lock:
+            session = self.terminal_session(request)
+            terminal = self.terminals.get(session["id"])
+        if terminal is None:
+            raise BridgeError("CLI 已退出，不能继续输入。")
+        return {"written": terminal.write(data)}
+
+    def terminal_resize(self, request):
+        with self.lock:
+            session = self.terminal_session(request)
+            terminal = self.terminals.get(session["id"])
+        if terminal:
+            terminal.resize(request.get("cols"), request.get("rows"))
+        return {}
 
     def begin_shutdown(self):
         with self.mutations, self.lock:
@@ -558,6 +695,10 @@ class Bridge:
             return {"ok": True, "result": self.status()}
         if action == "snapshot":
             return {"ok": True, "result": self.snapshot(request.get("sessionId"))}
+        if action == "terminalRead":
+            return {"ok": True, "result": self.terminal_read(request)}
+        if action == "terminalResize":
+            return {"ok": True, "result": self.terminal_resize(request)}
         if action in {"catalog", "open", "historyPage", "models"}:
             methods = {"catalog": self.catalog, "open": self.open_session, "historyPage": self.history_page,
                        "models": lambda r: self.models(refresh=bool(r.get("refresh")))}
@@ -578,7 +719,8 @@ class Bridge:
                     break
             return {"ok": True, "result": {"path": str(path), "root": str(self.root),
                      "parent": str(path.parent) if path != self.root else None, "directories": children}}
-        methods = {"create": self.create, "send": self.send, "answer": self.answer, "stop": self.stop, "addProject": self.add_project}
+        methods = {"create": self.create, "send": self.send, "answer": self.answer, "stop": self.stop,
+                   "addProject": self.add_project, "terminalInput": self.terminal_input}
         if action not in methods:
             raise BridgeError("未知操作。")
         with self.mutations:
@@ -661,11 +803,14 @@ def serve(directory, root):
         except KeyboardInterrupt:
             pass
         finally:
-            bridge.rpc.process.terminate()
-            try:
-                bridge.rpc.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                bridge.rpc.process.kill()
+            for terminal in list(bridge.terminals.values()):
+                terminal.stop()
+            if bridge.rpc.process is not None:
+                bridge.rpc.process.terminate()
+                try:
+                    bridge.rpc.process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    bridge.rpc.process.kill()
             socket_path.unlink(missing_ok=True)
 
 
@@ -698,9 +843,6 @@ def ensure(directory, root):
             raise BridgeError("后台正在更新，请稍后重新连接。")
     except (FileNotFoundError, ConnectionRefusedError):
         pass
-    executable = shutil.which("codex")
-    if not executable:
-        raise BridgeError("未找到 codex，请先在服务器安装并登录 Codex CLI。")
     command = [sys.executable, str(Path(__file__).resolve()), "serve"]
     if root:
         command += ["--root", root]

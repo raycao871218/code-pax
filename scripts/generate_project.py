@@ -61,6 +61,12 @@ plist = add("Info.plist", {"isa": "PBXFileReference", "lastKnownFileType": "text
 bridge_file = add("BridgeResource", {"isa": "PBXFileReference", "lastKnownFileType": "text.script.python",
                                    "path": "../backend/bridge.py", "sourceTree": "<group>"})
 bridge_build = add("BridgeResourceBuild", {"isa": "PBXBuildFile", "fileRef": bridge_file})
+terminal_backend = add("TerminalBackend", {"isa": "PBXFileReference", "lastKnownFileType": "text.script.python",
+    "path": "../backend/terminal_runtime.py", "sourceTree": "<group>"})
+terminal_backend_build = add("TerminalBackendBuild", {"isa": "PBXBuildFile", "fileRef": terminal_backend})
+terminal_assets = add("TerminalAssets", {"isa": "PBXFileReference", "lastKnownFileType": "folder",
+    "path": "Terminal", "sourceTree": "<group>"})
+terminal_assets_build = add("TerminalAssetsBuild", {"isa": "PBXBuildFile", "fileRef": terminal_assets})
 packages, products, framework_builds = [], [], []
 for name, url, version, product in [
     ("Citadel", "https://github.com/orlandos-nl/Citadel.git", "0.12.1", "Citadel"),
@@ -81,7 +87,7 @@ app = add("AppProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper
                          "path": "CodexIPad.app", "sourceTree": "BUILT_PRODUCTS_DIR"})
 tests = add("TestsProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper.cfbundle",
                              "path": "CodexIPadTests.xctest", "sourceTree": "BUILT_PRODUCTS_DIR"})
-app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + [plist, bridge_file],
+app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + [plist, bridge_file, terminal_backend, terminal_assets],
                              "path": "CodexIPad", "sourceTree": "<group>"})
 test_group = add("TestsGroup", {"isa": "PBXGroup", "children": test_refs,
                                 "path": "CodexIPadTests", "sourceTree": "<group>"})
@@ -100,7 +106,7 @@ app_configs = config_list("App", {
     "INFOPLIST_FILE": "CodexIPad/Info.plist", "GENERATE_INFOPLIST_FILE": "NO",
     "TARGETED_DEVICE_FAMILY": "2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
     "SUPPORTS_MACCATALYST": "NO", "CODE_SIGN_STYLE": "Automatic",
-    "CURRENT_PROJECT_VERSION": "4", "MARKETING_VERSION": "0.3.1",
+    "CURRENT_PROJECT_VERSION": "5", "MARKETING_VERSION": "0.4.0",
     "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
 })
 test_configs = config_list("Tests", {
@@ -114,7 +120,7 @@ app_target = add("AppTarget", {
     "isa": "PBXNativeTarget", "buildConfigurationList": app_configs,
     "buildPhases": [phase("AppSources", "PBXSourcesBuildPhase", source_builds),
                     phase("AppFrameworks", "PBXFrameworksBuildPhase", framework_builds),
-                    phase("AppResources", "PBXResourcesBuildPhase", [bridge_build])],
+                    phase("AppResources", "PBXResourcesBuildPhase", [bridge_build, terminal_backend_build, terminal_assets_build])],
     "buildRules": [], "dependencies": [], "name": "CodexIPad", "productName": "CodexIPad",
     "productReference": app, "productType": "com.apple.product-type.application",
     "packageProductDependencies": products,
