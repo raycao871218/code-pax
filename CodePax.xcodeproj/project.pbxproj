@@ -225,6 +225,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B0E761D36C8A2DDCBB3A11FA";
 		};
+		"BCB235E0994353D4F25D0C81" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "TerminalView.swift";
+			"sourceTree" = "<group>";
+		};
+		"502D77FE2613E3A27233DE42" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BCB235E0994353D4F25D0C81";
+		};
 		"F73B4E26D076A869020D0D7B" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -330,6 +340,26 @@
 		"7BA53F274DAE182CE44069D5" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "94CC9F2AC0530B3EEA5E4DA0";
+		};
+		"C1C7C4E31DCC2F8670A79986" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.script.python";
+			"path" = "../backend/terminal_runtime.py";
+			"sourceTree" = "<group>";
+		};
+		"1F4B7EBF37AAE5835E708431" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "C1C7C4E31DCC2F8670A79986";
+		};
+		"E826FC2AAA451A41324E6031" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "folder";
+			"path" = "Terminal";
+			"sourceTree" = "<group>";
+		};
+		"15705C83961B33AD919286E1" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E826FC2AAA451A41324E6031";
 		};
 		"10310EF03022072BE8A2F9FB" = {
 			"isa" = "PBXFileReference";
@@ -463,12 +493,15 @@
 				"E43BEB0CC0385D36027ECC82",
 				"6664BEE09754B66CC3163762",
 				"B0E761D36C8A2DDCBB3A11FA",
+				"BCB235E0994353D4F25D0C81",
 				"F73B4E26D076A869020D0D7B",
 				"F7BB561F6168F5DA392CC3B7",
 				"5D7F05CC38FDBBA02A03F66E",
 				"7B594B6DB375E1BF3F23CDD6",
 				"94CC9F2AC0530B3EEA5E4DA0",
 				"10310EF03022072BE8A2F9FB",
+				"C1C7C4E31DCC2F8670A79986",
+				"E826FC2AAA451A41324E6031",
 			);
 			"path" = "CodePax";
 			"sourceTree" = "<group>";
@@ -653,6 +686,7 @@
 				"6280BD9F0382933D5F1331FE",
 				"5965AB8DF7D9D50F0F759E71",
 				"F62D998D58E5F4E14278AD79",
+				"502D77FE2613E3A27233DE42",
 				"F120A603D7162D480829E1A1",
 				"55E316644D65F19FA0281BDA",
 				"935453F433F2B6655843A15C",
@@ -677,6 +711,8 @@
 			"files" = (
 				"7BA53F274DAE182CE44069D5",
 				"C4BB86E98C65C496706ADDAF",
+				"1F4B7EBF37AAE5835E708431",
+				"15705C83961B33AD919286E1",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
