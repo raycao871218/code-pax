@@ -189,6 +189,8 @@ struct CodexSessionSummary: Decodable, Identifiable {
     var agent: String? = nil
     var mode: String? = nil
     var agentTitle: String { cliAgentTitle(agent ?? "codex") }
+    var collaborationRunId: String? = nil
+    var collaborationTaskId: String? = nil
 }
 
 struct CodexMessage: Decodable, Identifiable {
@@ -307,6 +309,8 @@ struct CodexSession: Decodable, Identifiable {
     var mode: String? = nil
     var isTerminal: Bool { mode == "terminal" }
     var agentTitle: String { cliAgentTitle(agent ?? "codex") }
+    var collaborationRunId: String? = nil
+    var collaborationTaskId: String? = nil
     var isRunning: Bool { ["inProgress", "waiting", "starting"].contains(status) }
 }
 
