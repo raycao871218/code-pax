@@ -111,6 +111,23 @@ class TerminalIntegrationTests(unittest.TestCase):
         with self.assertRaises(BridgeError):
             self.bridge.models()
 
+    def test_terminal_snapshot_preserves_metadata_and_skips_codex_writer_locks(self):
+        identifier = self.create("import time; print('READY'); time.sleep(30)")
+        result = self.operation("sessionMetadata", sessionId=identifier, title="My CLI", pinned=True)
+        self.assertTrue(result["ok"], result)
+        with patch("bridge.thread_writer_occupied", return_value=True) as writer:
+            snapshot = self.bridge.snapshot(identifier)
+        writer.assert_not_called()
+        self.assertEqual(snapshot["selected"]["status"], "inProgress")
+        self.assertFalse(snapshot["selected"]["readOnly"])
+        summary = next(s for s in snapshot["sessions"] if s["id"] == identifier)
+        self.assertEqual(summary["mode"], "terminal")
+        self.assertEqual(summary["agent"], "custom")
+        self.assertEqual(summary["title"], "My CLI")
+        self.assertTrue(summary["pinned"])
+        self.assertEqual(self.bridge.open_session(dict(sessionId=identifier)), {"id": identifier})
+        self.assertEqual(self.bridge.history_page(dict(sessionId=identifier)), {"messages": [], "nextCursor": None})
+
     def test_controlling_tty_cwd_unicode_and_successful_exit(self):
         identifier = self.create("import os; print(os.getcwd()); print(os.isatty(0), os.isatty(1)); print(os.ttyname(0)); print('你好')")
         self.wait_for(lambda: self.bridge.sessions[identifier]["status"] == "completed")

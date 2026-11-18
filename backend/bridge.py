@@ -3,6 +3,7 @@
 import argparse
 import base64
 import concurrent.futures
+import fcntl
 import hashlib
 import json
 import os
@@ -20,10 +21,38 @@ import uuid
 from terminal_runtime import Terminal, agent_catalog, launch_command, read_archive
 
 PROTOCOL = 3
-BRIDGE_VERSION = "0.4.0"
+BRIDGE_VERSION = "0.15.0"
 MAX_WIRE = 2 * 1024 * 1024
 MAX_TEXT = 12000
+MESSAGE_PREVIEW = 4000
 ACTIVE = {"inProgress", "waiting", "starting"}
+WRITER_CONFLICT = "此会话被另一个 Codex 客户端占用，本条消息尚未发送。请先退出另一端打开此会话的 Codex App / CLI，再重试；也可以新建聊天继续工作。"
+
+
+def writer_conflict(error):
+    text = str(error).lower()
+    return "thread-store conflict" in text and "already has an active writer" in text
+
+
+def thread_writer_occupied(identifier):
+    # Match Codex's local writer lock namespace. Never create, delete, or retain a lock.
+    try:
+        identifier = str(uuid.UUID(identifier))
+    except (ValueError, TypeError, AttributeError):
+        return None
+    home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
+    try:
+        with (home / "thread-writer-locks" / (identifier + ".lock")).open("rb") as handle:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_SH | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return True
+            fcntl.flock(handle, fcntl.LOCK_UN)
+            return False
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return None  # Unknown is not proof of occupancy; resume remains authoritative.
 
 
 def clipped(value, limit=MAX_TEXT):
@@ -46,6 +75,20 @@ class UnavailableCodex:
         raise BridgeError("Codex 聊天不可用：" + self.error)
 
 
+def codex_executable():
+    # SSH commands may not load the interactive shell's PATH (notably .zshrc).
+    executable = shutil.which("codex")
+    if executable:
+        return executable
+    home = Path.home()
+    for directory in (home / ".local/bin", home / ".npm-global/bin",
+                      home / "bin", Path("/opt/homebrew/bin"), Path("/usr/local/bin")):
+        executable = shutil.which("codex", path=str(directory))
+        if executable:
+            return executable
+    raise BridgeError("未找到 codex，请先在服务器安装 Codex CLI，并将其加入 PATH 或安装到 ~/.local/bin。")
+
+
 class Store:
     def __init__(self, directory):
         self.lock = threading.RLock()
@@ -55,6 +98,8 @@ class Store:
           CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, value TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY, digest TEXT NOT NULL, value TEXT);
           CREATE TABLE IF NOT EXISTS projects(path TEXT PRIMARY KEY, title TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS message_bodies(session TEXT, id TEXT, text TEXT NOT NULL, PRIMARY KEY(session,id));
+          CREATE TABLE IF NOT EXISTS message_attachments(session TEXT, id TEXT, value TEXT NOT NULL, PRIMARY KEY(session,id));
         """)
         self.db.commit()
 
@@ -73,7 +118,62 @@ class Store:
         with self.lock:
             self.db.execute("INSERT OR REPLACE INTO sessions VALUES (?,?)",
                             (session["id"], json.dumps(session, ensure_ascii=False)))
+            self._save_bodies(session["id"], session["messages"])
             self.db.commit()
+
+    def _save_bodies(self, session, messages):
+        self.db.executemany("INSERT INTO message_bodies VALUES (?,?,?) ON CONFLICT(session,id) DO UPDATE SET text=excluded.text WHERE text != excluded.text",
+                            [(session, m["id"], m["text"]) for m in messages])
+
+        for message in messages:
+            if message.get("attachments"):
+                value = json.dumps(message["attachments"], ensure_ascii=False)
+                for identifier in {message["id"], message.get("sourceItemId", message["id"])}:
+                    self.db.execute("INSERT OR REPLACE INTO message_attachments VALUES (?,?,?)", (session, identifier, value))
+
+    def attachments_for(self, session, identifier):
+        with self.lock:
+            row = self.db.execute("SELECT value FROM message_attachments WHERE session=? AND id=?", (session, identifier)).fetchone()
+            return json.loads(row[0]) if row else []
+
+    def save_bodies(self, session, messages):
+        with self.lock:
+            self._save_bodies(session, messages)
+            self.db.commit()
+
+    def body(self, session, identifier):
+        with self.lock:
+            row = self.db.execute("SELECT text FROM message_bodies WHERE session=? AND id=?", (session, identifier)).fetchone()
+            return row[0] if row else None
+
+    @staticmethod
+    def rejected_send(request, result):
+        # Only explicit failures known to precede turn acceptance are recoverable.
+        return (request.get("action") == "send" and not result.get("ok") and
+                (result.get("error", "").startswith("thread not loaded:") or
+                 writer_conflict(result.get("error", "")) or
+                 result.get("error") == WRITER_CONFLICT or
+                 result.get("error") in {"thread/items/list is not supported yet",
+                     "找不到附件，请重新添加。", "附件不属于当前会话，或路径无效。",
+                     "附件上传不完整或已被删除，请重新添加。", "每次最多发送 8 个附件。"}))
+
+    def operation_status(self, request):
+        token = request.get("operationId", "")
+        digest = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+        with self.lock:
+            row = self.db.execute("SELECT digest,value FROM operations WHERE id=?", (token,)).fetchone()
+        if not row:
+            return {"state": "missing"}
+        if row[0] != digest:
+            raise BridgeError("待确认请求与服务器记录不匹配。")
+        if row[1] is None:
+            return {"state": "unknown"}
+        result = json.loads(row[1])
+        if result.get("ok"):
+            return {"state": "accepted"}
+        if self.rejected_send(request, result):
+            return {"state": "rejected", "error": result.get("error")}
+        return {"state": "unknown", "error": result.get("error")}
 
     def operation(self, request, action):
         token = request.get("operationId", "")
@@ -87,7 +187,13 @@ class Store:
                     raise BridgeError("同一个操作 ID 不能用于不同的请求。")
                 if row[1] is None:
                     raise BridgeError("上次请求结果尚不确定，请先刷新会话，不要重复发送任务。")
-                return json.loads(row[1])
+                previous = json.loads(row[1])
+                # These explicit rejections happened before a turn was accepted.
+                # Older bridges cached them forever, including after an upgrade.
+                retryable = self.rejected_send(request, previous)
+                if not retryable:
+                    return previous
+                self.db.execute("DELETE FROM operations WHERE id=?", (token,))
             self.db.execute("INSERT INTO operations VALUES (?,?,NULL)", (token, digest))
             self.db.commit()
         try:
@@ -101,19 +207,19 @@ class Store:
 
 
 class AppServer:
-    def __init__(self, callback, executable="codex"):
+    def __init__(self, callback, executable=None):
         self.callback = callback
         self.pending = {}
         self.lock = threading.Lock()
         self.write_lock = threading.Lock()
         self.next_id = 0
         self.ready = False
-        self.process = subprocess.Popen([executable, "app-server", "--listen", "stdio://"],
+        self.process = subprocess.Popen([executable or codex_executable(), "app-server", "--listen", "stdio://"],
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=sys.stderr, text=True, bufsize=1)
         threading.Thread(target=self.read, daemon=True).start()
         try:
-            self.request("initialize", {"clientInfo": {"name": "codex_ipad", "title": "Codex iPad", "version": BRIDGE_VERSION},
+            self.request("initialize", {"clientInfo": {"name": "codex_ipad", "title": "Code Pax", "version": BRIDGE_VERSION},
                                         "capabilities": {"experimentalApi": True}})
             self.write({"method": "initialized", "params": {}})
             self.ready = True
@@ -179,17 +285,28 @@ class Bridge:
         self.projects = self.store.load_projects()
         self.model_catalog = []
         self.models_updated_at = 0
+        self.account_usage = None
+        self.usage_updated_at = 0
+        self.usage_dirty = False
+        self.usage_lock = threading.Lock()
         self.loaded = set()
         self.stopping = False
         self.terminals = {}
         self.epoch = uuid.uuid4().hex
         for session in self.sessions.values():
+            if session.get("status") == "completed" and session.get("turnId"):
+                session.setdefault("completedTurnId", session["turnId"])
             session["approvals"] = []
+            for message in session["messages"]:
+                if message["kind"] == "userMessage" and message["status"] == "sending":
+                    message["status"] = "unknown"
             if session["status"] in ACTIVE:
                 session["status"] = "interrupted"
                 session["error"] = ("服务器后台已重启，终端已中断。请新建 CLI 会话并按 CLI 的方式恢复任务。"
                                     if session.get("mode") == "terminal" else
                                     "服务器后台已重启，原任务中断。发送新消息可继续会话。")
+            for message in session["messages"]:
+                self.recover_attachment_metadata(session, message)
             self.store.save(session)
         try:
             self.rpc = rpc_factory(self.on_message)
@@ -219,13 +336,13 @@ class Bridge:
         authenticated = False
         if self.rpc.ready:
             try:
-                login = subprocess.run([shutil.which("codex") or "codex", "login", "status"],
+                login = subprocess.run([codex_executable(), "login", "status"],
                                        capture_output=True, timeout=10)
                 authenticated = login.returncode == 0
-            except (OSError, subprocess.TimeoutExpired):
+            except (OSError, subprocess.TimeoutExpired, BridgeError):
                 pass
         return {"protocol": PROTOCOL, "ready": True, "codexReady": self.rpc.ready,
-                "capabilities": ["terminal", "customCLI", "projects"] + (
+                "capabilities": ["terminal", "customCLI", "projects", "accessMode", "operationStatus", "optimisticMessages", "usage", "attachments", "messageBody", "manageSessions", "downloadFiles"] + (
                     ["codexChat", "catalog", "models"] if self.rpc.ready else []),
                 "agents": agent_catalog(),
                 "version": BRIDGE_VERSION,
@@ -234,7 +351,9 @@ class Bridge:
 
     def snapshot(self, identifier):
         with self.lock:
-            summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model", "agent", "mode")}
+            if identifier in self.sessions:
+                self.update_writer_occupancy(self.sessions[identifier])
+            summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model", "agent", "mode", "completedTurnId", "pinned", "archived")}
                          for s in sorted(self.sessions.values(), key=lambda s: s["updatedAt"], reverse=True)[:1000]]
             projects = dict(self.projects)
             for summary in summaries:
@@ -242,11 +361,44 @@ class Bridge:
             selected = None
             if identifier in self.sessions:
                 selected = dict(self.session(identifier))
-                selected["messages"] = selected["messages"][-40:]
+                selected["messages"] = [self.preview_message(m) for m in selected["messages"][-40:]]
+                selected["diffLength"] = len(selected.get("diff", ""))
+                selected["diffTruncated"] = selected["diffLength"] > MESSAGE_PREVIEW
+                selected["diff"] = selected.get("diff", "")[:MESSAGE_PREVIEW]
                 selected["historyTruncated"] = len(self.session(identifier)["messages"]) > 40 or bool(selected.get("historyCursor"))
             # Detach from shared dicts before serializing in the request handler.
             return json.loads(json.dumps({"sessions": summaries, "projects": [{"id": p, "title": t} for p, t in sorted(projects.items())], "selected": selected,
                                          "ready": True, "codexReady": self.rpc.ready}, ensure_ascii=False))
+
+    @staticmethod
+    def preview_message(message):
+        text = message["text"]
+        return {**message, "text": text[:MESSAGE_PREVIEW], "sourceText": None,
+                "contentLength": len(text), "textTruncated": len(text) > MESSAGE_PREVIEW}
+
+    def message_body(self, request):
+        with self.lock:
+            session = self.session(request.get("sessionId"))
+            self.project(session["cwd"])
+            identifier = request.get("messageId")
+            if not isinstance(identifier, str):
+                raise BridgeError("无效消息 ID。")
+            if identifier == "__diff__":
+                text = session.get("diff", "")
+            else:
+                message = next((m for m in session["messages"] if m["id"] == identifier), None)
+                text = message["text"] if message else self.store.body(session["id"], identifier)
+            if text is None:
+                raise BridgeError("找不到消息，请重新同步历史。")
+            revision = hashlib.sha256(text.encode()).hexdigest()
+            if request.get("revision") and request["revision"] != revision:
+                raise BridgeError("内容仍在更新，请在回答完成后重新打开。")
+            offset = request.get("offset", 0)
+            if type(offset) is not int or not 0 <= offset <= len(text):
+                raise BridgeError("无效分页位置。")
+            end = min(len(text), offset + 24000)
+            return {"text": text[offset:end], "nextOffset": end if end < len(text) else None,
+                    "contentLength": len(text), "revision": revision}
 
     def add_project(self, request):
         path = self.project(request.get("cwd"))
@@ -276,6 +428,8 @@ class Bridge:
                 skipped += 1
                 continue
             identifier = thread["id"]
+            identifier = next((s["id"] for s in self.sessions.values()
+                               if s.get("remoteThreadId") == identifier), identifier)
             with self.lock:
                 if identifier not in self.sessions:
                     self.sessions[identifier] = {"id": identifier,
@@ -288,7 +442,7 @@ class Bridge:
                     imported += 1
                 elif identifier not in self.loaded:
                     session = self.sessions[identifier]
-                    if thread.get("name"):
+                    if thread.get("name") and not session.get("customTitle"):
                         session["title"] = clipped(thread["name"], 100)
                     session["updatedAt"] = max(session["updatedAt"], thread.get("updatedAt") or 0)
                     self.store.save(session)
@@ -301,18 +455,68 @@ class Bridge:
             self.project(session["cwd"])
             if session.get("mode") == "terminal":
                 return {"messages": [], "nextCursor": None}
-        params = {"threadId": identifier, "limit": 40, "sortDirection": "desc"}
+        remote_id = session.get("remoteThreadId", identifier)
+        if str(request.get("cursor", "")).startswith("legacy:"):
+            return self.legacy_history_page(remote_id, request.get("cursor"))
+        params = {"threadId": remote_id, "limit": 40, "sortDirection": "desc"}
         if request.get("cursor"):
             params["cursor"] = request["cursor"]
-        page = self.rpc.request("thread/items/list", params)
+        try:
+            page = self.rpc.request("thread/items/list", params)
+        except BridgeError as error:
+            if not self.unsupported_history(error):
+                raise
+            return self.legacy_history_page(remote_id)
         messages = []
         for entry in reversed(page.get("data", [])):
             item = entry["item"]
             text = self.render_item(item)
             if text is not None:
-                messages.append({"id": item["id"], "kind": item["type"], "text": clipped(text),
+                messages.append({"id": item["id"], "kind": item["type"], "text": text,
                                  "status": item.get("status", "completed")})
         return {"messages": messages, "nextCursor": page.get("nextCursor")}
+
+    @staticmethod
+    def unsupported_history(error):
+        text = str(error).lower()
+        return any(value in text for value in ("not supported", "unsupported", "unknown method", "method not found"))
+
+    def legacy_history_page(self, identifier, cursor=None):
+        # Older CLI releases expose saved items through thread/read only.
+        thread = self.rpc.request("thread/read", {"threadId": identifier, "includeTurns": True})["thread"]
+        messages = []
+        for turn in thread.get("turns", []):
+            for item in turn.get("items", []):
+                text = self.render_item(item)
+                if text is not None:
+                    messages.append({"id": item["id"], "kind": item["type"], "text": text,
+                                     "status": item.get("status", "completed")})
+        end = len(messages)
+        if cursor:
+            anchor = cursor.removeprefix("legacy:")
+            end = next((i for i, item in enumerate(messages) if item["id"] == anchor), -1)
+            if end < 0:
+                raise BridgeError("历史分页位置已失效，请重新打开会话。")
+        start = max(0, end - 40)
+        return {"messages": messages[start:end],
+                "nextCursor": "legacy:" + messages[start]["id"] if start else None}
+
+    def update_writer_occupancy(self, session):
+        if session.get("mode") == "terminal":
+            return
+        identifier = session["id"]
+        occupied = False if identifier in self.loaded else thread_writer_occupied(session.get("remoteThreadId", identifier))
+        if occupied is None:
+            return
+        if occupied:
+            if session["status"] != "externalOccupied":
+                session["writerPreviousStatus"] = session["status"]
+            session.update(status="externalOccupied", readOnly=True, writerOccupied=True)
+        else:
+            if session["status"] == "externalOccupied":
+                session["status"] = session.pop("writerPreviousStatus", "idle")
+            session["writerOccupied"] = False
+            session["readOnly"] = session["status"] == "externalActive"
 
     def open_session(self, request):
         identifier = request.get("sessionId")
@@ -323,15 +527,47 @@ class Bridge:
                 return {"id": identifier}
             if identifier in self.loaded:
                 return {"id": identifier}
-        metadata = self.rpc.request("thread/read", {"threadId": identifier})["thread"]
-        turns = self.rpc.request("thread/turns/list", {"threadId": identifier, "limit": 1,
-            "sortDirection": "desc", "itemsView": "notLoaded"}).get("data", [])
-        page = self.history_page({"sessionId": identifier})
+        remote_id = session.get("remoteThreadId", identifier)
+        try:
+            metadata = self.rpc.request("thread/read", {"threadId": remote_id})["thread"]
+        except BridgeError as error:
+            # Pre-0.3 app threads could disappear on restart before their first turn.
+            # Browsing stays read-only; a replacement is created only on Send.
+            if (str(error).startswith("thread not loaded:") and session.get("origin") != "codex"
+                    and not session["messages"] and not session.get("turnId")):
+                session["needsRecreation"] = True
+                self.store.save(session)
+                return {"id": identifier}
+            raise
+        try:
+            turns = self.rpc.request("thread/turns/list", {"threadId": remote_id, "limit": 1,
+                "sortDirection": "desc", "itemsView": "notLoaded"}).get("data", [])
+        except BridgeError as error:
+            if not self.unsupported_history(error):
+                raise
+            metadata = self.rpc.request("thread/read", {"threadId": remote_id, "includeTurns": True})["thread"]
+            turns = metadata.get("turns", [])[-1:]
+        page = self.decorate_history(identifier, self.history_page({"sessionId": identifier}))
         with self.lock:
+            # Keep optimistic IDs stable when disk history is read after reconnecting.
+            previous = session["messages"]
+            used = set()
+            for item in reversed(page["messages"]):
+                match = next((m for m in previous if m.get("sourceItemId") == item["id"]), None)
+                if match is None and item["kind"] == "userMessage":
+                    match = next((m for m in reversed(previous) if m["id"] == session.get("pendingUserMessageId")
+                                  and m["id"] not in used and m.get("sourceText", m["text"]) == item["text"]), None)
+                if match is not None:
+                    item.update(id=match["id"], status="accepted", sourceItemId=item["id"])
+                    if match.get("attachments"):
+                        item["attachments"] = match["attachments"]
+                    if match.get("sourceText"):
+                        item.update(text=match["text"], sourceText=match["sourceText"])
+                    used.add(match["id"])
             session["messages"] = page["messages"]
             session["historyCursor"] = page["nextCursor"]
             session["historyLoaded"] = True
-            if metadata.get("name"):
+            if metadata.get("name") and not session.get("customTitle"):
                 session["title"] = clipped(metadata["name"], 100)
             if turns:
                 latest = turns[0]
@@ -341,8 +577,11 @@ class Bridge:
                 session["status"] = "externalActive" if external_active else (
                     session["status"] if session["status"] == "interrupted" and latest["status"] == "inProgress" else latest["status"])
                 session["turnId"] = latest["id"]
+                if latest["status"] == "completed":
+                    session["completedTurnId"] = latest["id"]
                 if latest.get("error"):
                     session["error"] = clipped(latest["error"].get("message"))
+        self.update_writer_occupancy(session)
         self.store.save(session)
         return {"id": identifier}
 
@@ -391,6 +630,10 @@ class Bridge:
         method = message.get("method", "")
         params = message.get("params", {})
         with self.lock:
+            if method == "account/rateLimits/updated":
+                # Notifications are sparse; refetch rather than erase missing buckets.
+                self.usage_dirty = True
+                return
             if method == "bridge/disconnected":
                 for session in self.sessions.values():
                     if session.get("mode") == "terminal":
@@ -402,11 +645,20 @@ class Bridge:
                     self.store.save(session)
                 return
             identifier = params.get("threadId")
+            identifier = next((s["id"] for s in self.sessions.values()
+                               if s.get("remoteThreadId") == identifier), identifier)
             if identifier not in self.sessions:
                 if "id" in message:
                     self.rpc.write({"id": message["id"], "error": {"code": -32601, "message": "Unknown thread or unsupported request"}})
                 return
             session = self.sessions[identifier]
+            if method == "thread/tokenUsage/updated":
+                session["tokenUsage"] = params.get("tokenUsage")
+                self.store.save(session)
+                return
+            if method == "thread/closed":
+                self.loaded.discard(identifier)
+                return
             if "id" in message:
                 supported = {"item/commandExecution/requestApproval", "item/fileChange/requestApproval",
                              "item/tool/requestUserInput", "item/permissions/requestApproval"}
@@ -422,6 +674,8 @@ class Bridge:
                 session["turnId"] = turn["id"]
                 session["status"] = turn["status"]
                 if method == "turn/completed":
+                    if turn["status"] == "completed":
+                        session["completedTurnId"] = turn["id"]
                     session["approvals"] = [a for a in session["approvals"] if a["params"].get("turnId") != turn["id"]]
                     if turn.get("error"):
                         session["error"] = clipped(turn["error"].get("message"))
@@ -433,19 +687,29 @@ class Bridge:
                 item = params["item"]
                 content = self.render_item(item)
                 if content is not None:
-                    existing = next((m for m in session["messages"] if m["id"] == item["id"]), None)
-                    value = {"id": item["id"], "kind": item["type"], "text": clipped(content),
+                    existing = next((m for m in session["messages"] if m["id"] == item["id"] or m.get("sourceItemId") == item["id"]), None)
+                    if existing is None and item["type"] == "userMessage":
+                        existing = next((m for m in session["messages"]
+                                         if m["id"] == session.get("pendingUserMessageId") and m.get("sourceText", m["text"]) == content), None)
+                    value = {"id": item["id"], "kind": item["type"], "text": content,
                              "status": item.get("status", "completed" if method.endswith("completed") else "inProgress")}
                     if existing:
+                        if existing["id"].startswith("local:"):
+                            value.update(id=existing["id"], sourceItemId=item["id"], status="accepted")
+                            if existing.get("sourceText"):
+                                value["text"] = existing["text"]
+                            session.pop("pendingUserMessageId", None)
+                        if existing.get("attachments"):
+                            value["attachments"] = existing["attachments"]
                         existing.update(value)
                     else:
                         session["messages"].append(value)
             elif method in {"item/agentMessage/delta", "item/plan/delta", "item/commandExecution/outputDelta"}:
                 existing = next((m for m in session["messages"] if m["id"] == params.get("itemId")), None)
                 if existing:
-                    existing["text"] = clipped(existing["text"] + params.get("delta", ""))
+                    existing["text"] += params.get("delta", "")
             elif method == "turn/diff/updated":
-                session["diff"] = clipped(params.get("diff"), 128000)
+                session["diff"] = params.get("diff") or ""
             elif method == "error":
                 session["error"] = clipped(params.get("error", {}).get("message"))
             else:
@@ -477,38 +741,204 @@ class Bridge:
             return self.create_terminal(request)
         path = self.project(request.get("cwd"))
         settings = self.model_settings(request)
-        result = self.rpc.request("thread/start", {"cwd": str(path), "approvalPolicy": "untrusted",
-                                  "approvalsReviewer": "user", "sandbox": "workspace-write",
+        access = self.access_settings(request, {"cwd": str(path)})
+        result = self.rpc.request("thread/start", {"cwd": str(path), **access["thread"],
                                   **({"model": settings["model"]} if settings else {})})
         identifier = result["thread"]["id"]
         with self.lock:
             self.sessions[identifier] = {"id": identifier, "title": path.name or str(path), "cwd": str(path),
                 "status": "idle", "turnId": None, "updatedAt": time.time(), "messages": [],
                 "approvals": [], "diff": "", "error": None, "origin": "app", "readOnly": False,
-                "model": result.get("model"), "effort": settings.get("effort") or result.get("reasoningEffort")}
+                "model": result.get("model"), "effort": settings.get("effort") or result.get("reasoningEffort"),
+                "accessMode": access["mode"]}
             self.loaded.add(identifier)
             self.store.save(self.sessions[identifier])
         self.add_project({"cwd": str(path)})
         return {"id": identifier}
 
+    @staticmethod
+    def access_settings(request, session=None):
+        mode = request.get("accessMode", (session or {}).get("accessMode", "default"))
+        if mode not in {"default", "fullAccess"}:
+            raise BridgeError("无效的权限模式，请选择默认权限或 Full Access。")
+        full = mode == "fullAccess"
+        common = {"approvalPolicy": "never" if full else "untrusted", "approvalsReviewer": "user"}
+        return {"mode": mode,
+                "thread": {**common, "sandbox": "danger-full-access" if full else "workspace-write"},
+                "turn": {**common, "sandboxPolicy": {"type": "dangerFullAccess"} if full else {
+                    "type": "workspaceWrite", "writableRoots": [(session or {})["cwd"]], "networkAccess": False}}}
+
+    def decorate_history(self, identifier, page):
+        for message in page["messages"]:
+            attachments = self.store.attachments_for(identifier, message["id"])
+            if attachments:
+                message["attachments"] = attachments
+            else:
+                self.recover_attachment_metadata(self.session(identifier), message)
+        return page
+
+    def recover_attachment_metadata(self, session, message):
+        if message.get("kind") != "userMessage" or message.get("attachments"):
+            return
+        recovered = []
+        for line in (message.get("sourceText") or message.get("text", "")).splitlines():
+            if not line.startswith("{"):
+                continue
+            try:
+                value = json.loads(line)
+                if not isinstance(value, dict) or not isinstance(value.get("path"), str): continue
+                identifier = Path(value["path"]).parent.name
+                record = self.read_attachment(identifier, session)
+                if record["path"] == value["path"] and record["name"] == value.get("name"):
+                    if not any(item["id"] == identifier for item in recovered): recovered.append(record)
+            except (BridgeError, OSError, ValueError):
+                continue
+        if recovered:
+            message["attachments"] = recovered
+
+    def session_metadata(self, request):
+        with self.lock:
+            session = self.session(request.get("sessionId"))
+            title = request.get("title")
+            if title is not None:
+                if not isinstance(title, str) or not title.strip() or len(title.strip()) > 100:
+                    raise BridgeError("聊天名称不能为空，且不能超过 100 个字符。")
+            for field in ("pinned", "archived"):
+                if field in request and type(request[field]) is not bool:
+                    raise BridgeError("无效的会话设置。")
+            if request.get("archived") and (session["status"] in ACTIVE | {"externalActive", "unknown"} or session.get("readOnly")):
+                raise BridgeError("请先等待任务完成或停止，再归档聊天。")
+            if title is not None:
+                session["title"] = title.strip(); session["customTitle"] = True
+            for field in ("pinned", "archived"):
+                if field in request: session[field] = request[field]
+            self.store.save(session)
+            return {"id": session["id"]}
+
+    def file_info(self, request):
+        with self.lock:
+            project = self.project(self.session(request.get("sessionId"))["cwd"])
+        raw = request.get("path")
+        if not isinstance(raw, str) or not raw or len(raw) > 4096:
+            raise BridgeError("无效文件路径。")
+        candidate = Path(raw)
+        try:
+            target = (candidate if candidate.is_absolute() else project / candidate).resolve(strict=True)
+        except (OSError, RuntimeError):
+            raise BridgeError("文件不存在或无法访问，请确认文件路径。") from None
+        if not target.is_relative_to(project) or not target.is_file():
+            raise BridgeError("只能预览和下载当前项目中的文件。")
+        before = target.stat()
+        if before.st_size > 100 * 1024 * 1024:
+            raise BridgeError("单个下载文件不能超过 100 MB。")
+        digest = hashlib.sha256()
+        with target.open("rb") as handle:
+            while data := handle.read(1024 * 1024): digest.update(data)
+        after = target.stat()
+        if (before.st_size, before.st_mtime_ns, before.st_ino) != (after.st_size, after.st_mtime_ns, after.st_ino):
+            raise BridgeError("文件正在更新，请稍后重试。")
+        return {"name": target.name, "path": str(target), "size": after.st_size, "sha256": digest.hexdigest()}
+
+    def attachment_manifest(self, identifier):
+        if not isinstance(identifier, str) or len(identifier) != 32 or any(c not in "0123456789abcdef" for c in identifier):
+            raise BridgeError("无效附件 ID。")
+        return self.directory / "attachments" / (identifier + ".json")
+
+    def attachment(self, request):
+        session = self.session(request.get("sessionId"))
+        project = self.project(session["cwd"])
+        if request["action"] == "attachmentBegin":
+            name, size = request.get("name"), request.get("size")
+            if (not isinstance(name, str) or not name or len(name.encode("utf-8")) > 240 or name in {".", ".."}
+                    or any(c in name for c in '/\\') or any(ord(c) < 32 for c in name)):
+                raise BridgeError("无效文件名。")
+            if type(size) is not int or not 0 < size <= 20 * 1024 * 1024:
+                raise BridgeError("附件不能为空，单个附件不能超过 20 MB。")
+            identifier = uuid.uuid4().hex
+            base = project / ".codex-ipad-attachments"
+            if base.is_symlink():
+                raise BridgeError("附件目录不能是符号链接。")
+            target = base / identifier
+            target.mkdir(parents=True, mode=0o700)
+            record = {"id": identifier, "sessionId": session["id"], "name": name, "size": size,
+                      "path": str(target / name), "kind": "image" if Path(name).suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"} else "file"}
+            manifest = self.attachment_manifest(identifier)
+            manifest.parent.mkdir(exist_ok=True, mode=0o700)
+            manifest.write_text(json.dumps(record, ensure_ascii=False))
+            return {**record, "uploadPath": record["path"] + ".part"}
+        record = self.read_attachment(request.get("id"), session, require_complete=False)
+        target = Path(record["path"])
+        partial = Path(record["path"] + ".part")
+        if not record.get("complete"):
+            if partial.is_symlink() or not partial.is_file() or partial.stat().st_size != record["size"]:
+                raise BridgeError("附件上传不完整，请重新添加。")
+            partial.chmod(0o600)
+            os.replace(partial, target)
+            record["complete"] = True
+            self.attachment_manifest(record["id"]).write_text(json.dumps(record, ensure_ascii=False))
+        return record
+
+    def read_attachment(self, identifier, session, require_complete=True):
+        try:
+            record = json.loads(self.attachment_manifest(identifier).read_text())
+        except (FileNotFoundError, ValueError):
+            raise BridgeError("找不到附件，请重新添加。") from None
+        target = Path(record["path"])
+        expected = self.project(session["cwd"]) / ".codex-ipad-attachments" / identifier / record["name"]
+        if record["sessionId"] != session["id"] or target != expected or target.resolve() != expected:
+            raise BridgeError("附件不属于当前会话，或路径无效。")
+        if require_complete and (not record.get("complete") or not target.is_file() or target.stat().st_size != record["size"]):
+            raise BridgeError("附件上传不完整或已被删除，请重新添加。")
+        return record
+
     def send(self, request):
         if self.session(request.get("sessionId")).get("mode") == "terminal":
             raise BridgeError("终端会话请使用终端输入。")
         text = request.get("text", "").strip()
-        if not text or len(text) > 20000:
+        attachment_ids = request.get("attachments", [])
+        if not isinstance(attachment_ids, list) or len(attachment_ids) > 8:
+            raise BridgeError("每次最多发送 8 个附件。")
+        if (not text and not attachment_ids) or len(text) > 20000:
             raise BridgeError("消息不能为空，且不能超过 20000 个字符。")
         identifier = request.get("sessionId")
         with self.lock:
             session = self.session(identifier)
+            self.update_writer_occupancy(session)
+            if session.get("writerOccupied"):
+                raise BridgeError(WRITER_CONFLICT)
             if session["status"] in ACTIVE or session.get("readOnly"):
                 raise BridgeError("当前会话仍在运行或等待审批，请先完成或停止任务。")
             self.project(session["cwd"])
+        attachments = [self.read_attachment(value, session) for value in attachment_ids]
+        display_text = text + ("\n\n" if text and attachments else "") + "\n".join("📎 " + a["name"] for a in attachments)
+        prompt = text or "请查看附件。"
+        if attachments:
+            prompt += "\n\n附件（位于当前项目，按需要读取）：\n" + "\n".join(
+                json.dumps({"name": a["name"], "path": a["path"]}, ensure_ascii=False) for a in attachments)
+        inputs = [{"type": "text", "text": prompt}]
+        inputs += [{"type": "localImage", "path": a["path"]} for a in attachments if a["kind"] == "image"]
+        access = self.access_settings(request, session)
         if identifier not in self.loaded:
             self.open_session({"sessionId": identifier})
+            if session.get("writerOccupied"):
+                raise BridgeError(WRITER_CONFLICT)
             if session.get("readOnly"):
                 raise BridgeError("这个会话正在 CLI 中运行，请在 CLI 结束任务后刷新，再继续会话。")
-            resumed = self.rpc.request("thread/resume", {"threadId": identifier, "cwd": session["cwd"],
-                                              "approvalPolicy": "untrusted", "sandbox": "workspace-write", "excludeTurns": True})
+            if session.get("needsRecreation"):
+                resumed = self.rpc.request("thread/start", {"cwd": session["cwd"], **access["thread"]})
+                session["remoteThreadId"] = resumed["thread"]["id"]
+                session.pop("needsRecreation", None)
+                self.store.save(session)
+            else:
+                try:
+                    resumed = self.rpc.request("thread/resume", {"threadId": session.get("remoteThreadId", identifier), "cwd": session["cwd"],
+                                                      **access["thread"], "excludeTurns": True})
+                except BridgeError as error:
+                    if writer_conflict(error):
+                        # Resume failed before turn/start; the user can safely retry after
+                        # the owning client releases its writer. Never steal its lease.
+                        raise BridgeError(WRITER_CONFLICT) from None
+                    raise
             session["model"] = resumed.get("model") or session.get("model")
             session["effort"] = resumed.get("reasoningEffort") or session.get("effort")
             self.loaded.add(identifier)
@@ -517,14 +947,18 @@ class Bridge:
             session["status"] = "starting"
             session["error"] = None
             session["diff"] = ""
-            if not session["messages"]:
-                session["title"] = text[:48]
+            if not session["messages"] and not session.get("customTitle"):
+                session["title"] = (text or attachments[0]["name"])[:48]
+            message_id = "local:" + request["operationId"]
+            session["messages"].append({"id": message_id, "kind": "userMessage", "text": display_text, "sourceText": prompt, "attachments": attachments, "status": "sending"})
+            session["pendingUserMessageId"] = message_id
             self.store.save(session)
         try:
-            result = self.rpc.request("turn/start", {"threadId": identifier,
-                "input": [{"type": "text", "text": text}], "approvalPolicy": "untrusted",
-                "approvalsReviewer": "user", **settings})
+            result = self.rpc.request("turn/start", {"threadId": session.get("remoteThreadId", identifier),
+                "input": inputs, **access["turn"], **settings})
             with self.lock:
+                next(m for m in session["messages"] if m["id"] == message_id)["status"] = "accepted"
+                session["accessMode"] = access["mode"]
                 if settings:
                     session["model"] = settings["model"]
                     session["effort"] = settings.get("effort")
@@ -536,6 +970,9 @@ class Bridge:
         except Exception:
             # A timed-out request may have started a real turn. Never retry automatically.
             with self.lock:
+                message = next(m for m in session["messages"] if m["id"] == message_id)
+                if message["status"] == "sending":
+                    message["status"] = "unknown"
                 if session["status"] == "starting":
                     session["status"] = "unknown"
                     session["error"] = "请求结果不确定，请刷新确认，不要重复发送。"
@@ -589,7 +1026,7 @@ class Bridge:
                     raise BridgeError("终端已退出。")
                 terminal.stop()
                 return {}
-            identifier, turn = session["id"], session["turnId"]
+            identifier, turn = session.get("remoteThreadId", session["id"]), session["turnId"]
             if session["status"] not in ACTIVE or not turn:
                 raise BridgeError("该会话没有可停止的任务。")
         self.rpc.request("turn/interrupt", {"threadId": identifier, "turnId": turn})
@@ -689,8 +1126,46 @@ class Bridge:
                 raise BridgeError("还有运行中、待审批或结果不确定的任务，请先确认任务状态。")
             self.stopping = True
 
+    def usage(self, request):
+        identifier = request.get("sessionId")
+        with self.lock:
+            thread_usage = self.session(identifier).get("tokenUsage") if identifier else None
+        error = None
+        with self.usage_lock:
+            if request.get("refresh") or self.usage_dirty or self.account_usage is None or time.time() - self.usage_updated_at >= 60:
+                try:
+                    result = self.rpc.request("account/rateLimits/read", {})
+                    if not isinstance(result.get("rateLimits"), dict) and not isinstance(result.get("rateLimitsByLimitId"), dict):
+                        raise BridgeError("服务器未提供账号额度。")
+                    self.account_usage = {key: result.get(key) for key in ("rateLimits", "rateLimitsByLimitId")}
+                    self.usage_updated_at = time.time()
+                    self.usage_dirty = False
+                except Exception as failure:
+                    error = str(failure)
+            return {**(self.account_usage or {}), "threadUsage": thread_usage,
+                    "updatedAt": self.usage_updated_at or None, "error": error}
+
     def dispatch(self, request):
         action = request.get("action")
+        if action == "fileInfo":
+            return {"ok": True, "result": self.file_info(request)}
+        if action == "messageBody":
+            return {"ok": True, "result": self.message_body(request)}
+        if action == "historyPage":
+            with self.mutations:
+                page = self.decorate_history(request["sessionId"], self.history_page(request))
+                self.store.save_bodies(request["sessionId"], page["messages"])
+                return {"ok": True, "result": {**page, "messages": [self.preview_message(m) for m in page["messages"]]}}
+        if action in {"attachmentBegin", "attachmentFinish"}:
+            with self.mutations:
+                return {"ok": True, "result": self.attachment(request)}
+        if action == "usage":
+            return {"ok": True, "result": self.usage(request)}
+        if action == "operationStatus":
+            operation = request.get("operation")
+            if not isinstance(operation, dict) or operation.get("action") != "send":
+                raise BridgeError("无效的待确认发送请求。")
+            return {"ok": True, "result": self.store.operation_status(operation)}
         if action == "status":
             return {"ok": True, "result": self.status()}
         if action == "snapshot":
@@ -720,7 +1195,7 @@ class Bridge:
             return {"ok": True, "result": {"path": str(path), "root": str(self.root),
                      "parent": str(path.parent) if path != self.root else None, "directories": children}}
         methods = {"create": self.create, "send": self.send, "answer": self.answer, "stop": self.stop,
-                   "addProject": self.add_project, "terminalInput": self.terminal_input}
+                   "addProject": self.add_project, "terminalInput": self.terminal_input, "sessionMetadata": self.session_metadata}
         if action not in methods:
             raise BridgeError("未知操作。")
         with self.mutations:
