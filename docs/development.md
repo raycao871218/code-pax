@@ -1,6 +1,6 @@
 # 开发、构建与验证
 
-回到 [项目介绍](../README.md)。当前工程与 Scheme 为 `CodePax`，App 版本为 **0.14.1（Build 29）**。
+回到 [项目介绍](../README.md)。当前工程与 Scheme 为 `CodePax`，开发版为 **0.16.0（Build 30）**。
 
 ## 工程结构
 
@@ -9,6 +9,7 @@ CodePax/                     SwiftUI 客户端、SSH 连接、终端和资源
 CodePaxTests/                模型、交互、连接恢复、素材与终端测试
 CodePax.xcodeproj/           Xcode 工程、共享 Scheme 与依赖锁定文件
 backend/bridge.py           随 App 打包并部署到远端的 Python 桥接脚本
+backend/collaboration.py    协作调度、worktree、成员工具与成果快照
 backend/test_bridge.py      后台回归测试
 design/brand/               默认角色原画、动作图、来源和提示词
 docs/                      使用引导
@@ -54,6 +55,13 @@ python3 -m unittest discover -s backend -p 'test_*.py' -v
 ```
 
 ## 已有验证
+
+0.16.0 合入多 CLI 主线后的验证：
+
+- **103 项 Linux 后台测试通过**，包括主线原有测试及 19 项协作测试。协作测试使用真实临时 Git 仓库和 worktree，模型由测试替身提供，覆盖并行限制、审批、收件箱与身份校验、冲突回退、取消竞争、重启、去重、应用保护及大历史响应上限。
+- 在独立服务器临时项目中使用真实 Codex 0.164.0，完成两名 Worker 并行、动态工具留言、主控整合及显式应用；未修改业务项目或生产后台。
+- Mac Swift 5.9 编译并执行数据模型及应用 / 重试前置条件检查；七个修改或新增 Swift 文件通过编译器语法解析。新增协作视图及模型通过 macOS 兼容语义检查，该检查使用依赖替身并省略 iOS 专用修饰符。
+- 完整 iOS 构建、XCTest 和真机流程仍待验证；以上检查不代表 iPad App 已构建成功。
 
 0.14.1 工程改名后验证通过：
 

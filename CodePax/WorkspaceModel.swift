@@ -17,6 +17,7 @@ final class WorkspaceModel: ObservableObject {
     @Published var newAgent = "codex"
     @Published var newSessionMode = "chat"
     @Published var customCommand = ""
+    @Published private(set) var supportsCollaboration = false
     @Published private(set) var historyCursor: String?
     @Published private(set) var catalogStatus = ""
     @Published private(set) var selected: CodexSession?
@@ -286,7 +287,7 @@ final class WorkspaceModel: ObservableObject {
 
     var canAddAttachments: Bool {
         isPrepared && connection.isConnected && supportsAttachments && !isBusy && !isPreparingAttachment &&
-        !hasUncertainSend && attachments.count < AttachmentPolicy.maximumCount
+        !hasUncertainSend && selected?.collaborationRunId == nil && attachments.count < AttachmentPolicy.maximumCount
     }
 
     func modelChanged() { selectedEffort = "" }
@@ -315,33 +316,28 @@ final class WorkspaceModel: ObservableObject {
         }
         defer { isBusy = false }
         do {
-            var resources: [String: String] = [:]
-            for name in ["bridge", "terminal_runtime"] {
+            for name in ["terminal_runtime", "collaboration", "bridge"] {
                 guard let url = Bundle.main.url(forResource: name, withExtension: "py") else {
                     throw ConnectionError.message("App 缺少后台脚本资源，请重新构建工程。")
                 }
-                resources[name + ".py"] = try Data(contentsOf: url).base64EncodedString()
-            }
-            let resourceData = try JSONEncoder().encode(resources).base64EncodedString()
-            let installer = """
-            import base64,os,pathlib,tempfile
-            os.umask(0o077)
-            directory=pathlib.Path.home()/'.local/share/codex-ipad'
-            directory.mkdir(parents=True,exist_ok=True,mode=0o700)
-            if directory.is_symlink() or directory.stat().st_uid != os.getuid(): raise RuntimeError('Invalid bridge directory')
-            directory.chmod(0o700)
-            import json
-            resources=json.loads(base64.b64decode('\(resourceData)',validate=True))
-            for name,encoded in resources.items():
-                target=directory/name
+                let encoded = try Data(contentsOf: url).base64EncodedString()
+                let installer = """
+                import base64,os,pathlib,tempfile
+                os.umask(0o077)
+                directory=pathlib.Path.home()/'.local/share/codex-ipad'
+                directory.mkdir(parents=True,exist_ok=True,mode=0o700)
+                if directory.is_symlink() or directory.stat().st_uid != os.getuid(): raise RuntimeError('Invalid bridge directory')
+                directory.chmod(0o700)
+                target=directory/'\(name).py'
                 if target.is_symlink(): raise RuntimeError('Invalid bridge file')
                 with tempfile.NamedTemporaryFile(dir=directory,delete=False) as file:
-                    file.write(base64.b64decode(encoded,validate=True))
+                    file.write(base64.b64decode('\(encoded)',validate=True))
                     temporary=file.name
                 os.replace(temporary,target)
-            print('installed')
-            """
-            _ = try await connection.runCommand("python3 -c " + RemoteShell.quote(installer), limit: 4096)
+                print('installed')
+                """
+                _ = try await connection.runCommand("python3 -c " + RemoteShell.quote(installer), limit: 4096)
+            }
             let proxy = proxyURL.trimmingCharacters(in: .whitespacesAndNewlines)
             UserDefaults.standard.set(proxy, forKey: storageKey + ".proxy")
             let result: BridgeStatus = try await connection.runBridge(mode: "ensure", proxy: proxy)
@@ -365,6 +361,7 @@ final class WorkspaceModel: ObservableObject {
             supportsAttachments = result.capabilities?.contains("attachments") == true
             supportsSessionManagement = result.capabilities?.contains("manageSessions") == true
             supportsDownloads = result.capabilities?.contains("downloadFiles") == true
+            supportsCollaboration = result.capabilities?.contains("collaboration") == true
             selectedID = UserDefaults.standard.string(forKey: storageKey + ".selection")
             if let selectedID { activateDraft(selectedID) }
             hasUncertainSend = UserDefaults.standard.data(forKey: pendingKey) != nil
@@ -471,6 +468,7 @@ final class WorkspaceModel: ObservableObject {
     }
 
     private func resetWorkspace() {
+        supportsCollaboration = false
         draftOwner = nil
         nextPrepareAttempt = .distantPast
         sessions = []; projects = []; models = []; selected = nil; selectedID = nil
@@ -770,7 +768,7 @@ final class WorkspaceModel: ObservableObject {
 
     var canSubmit: Bool {
         connection.isConnected && isPrepared && !isBusy && !isPreparingAttachment && !hasUncertainSend &&
-        selected != nil && selected?.isTerminal != true && selected?.isRunning != true && selected?.readOnly != true &&
+        selected != nil && selected?.isTerminal != true && selected?.collaborationRunId == nil && selected?.isRunning != true && selected?.readOnly != true &&
         (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 

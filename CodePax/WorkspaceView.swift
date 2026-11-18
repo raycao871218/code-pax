@@ -43,6 +43,7 @@ struct WorkspaceView: View {
     @State private var historySession: CodexSession?
     @State private var showSettings = false
     @State private var showTerminal = false
+    @State private var showCollaboration = false
     @State private var showArchived = false
     @State private var showRename = false
     @State private var renameID = ""
@@ -79,6 +80,9 @@ struct WorkspaceView: View {
                     Button { showProjects = true } label: {
                         Label("新建聊天", systemImage: "square.and.pencil")
                     }.keyboardShortcut("n", modifiers: .command).tint(theme.isCompanion ? theme.accent : .primary).disabled(model.isBusy || !model.isPrepared)
+                    Button { showCollaboration = true } label: {
+                        Label("多 Agent 协作", systemImage: "person.3")
+                    }.tint(.primary).disabled(!model.isPrepared)
                     HStack(spacing: 10) {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                         TextField("搜索聊天", text: $model.search).textInputAutocapitalization(.never).focused($searchFocused)
@@ -246,6 +250,12 @@ struct WorkspaceView: View {
         }
         .sheet(isPresented: $showArchived) { ArchivedChatsView(model: model).appAppearance() }
         .sheet(isPresented: $showProjects) { ProjectPicker(model: model).appAppearance() }
+        .sheet(isPresented: $showCollaboration) {
+            CollaborationView(workspace: model) { identifier in
+                showCollaboration = false
+                Task { await model.select(identifier) }
+            }.id(connection.profile.credentialAccount).appAppearance()
+        }
         .sheet(isPresented: $showSettings) { workspaceSettings }
         .fullScreenCover(isPresented: $showTerminal) {
             RemoteTerminalScreen(model: connection.terminal, connection: connection, workingDirectory: model.selected?.cwd)
@@ -295,7 +305,7 @@ struct WorkspaceView: View {
 
     private var readingSessionID: String? {
         guard scenePhase == .active, isWorkspaceVisible, !showProjects, !showSettings,
-              !showUsage, !showArchived, !showRename, historySession == nil else { return nil }
+              !showUsage, !showArchived, !showRename, !showCollaboration, historySession == nil else { return nil }
         return visibleConversationID
     }
 
@@ -406,7 +416,13 @@ struct WorkspaceView: View {
                     }.padding(20).frame(maxWidth: 1000, alignment: .leading).frame(maxWidth: .infinity)
                 }.defaultScrollAnchor(.bottom)
                 Divider()
-                composer(session)
+                if session.collaborationRunId != nil {
+                    HStack {
+                        Text("协作成员由后台调度。可在协作面板留言、停止或重试；审批仍在上方处理。")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Button("打开协作") { showCollaboration = true }
+                    }.padding()
+                } else { composer(session) }
             }
         }
     }

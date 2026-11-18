@@ -19,9 +19,10 @@ import time
 import uuid
 
 from terminal_runtime import Terminal, agent_catalog, launch_command, read_archive
+from collaboration import Teams, tools_for
 
 PROTOCOL = 3
-BRIDGE_VERSION = "0.15.0"
+BRIDGE_VERSION = "0.16.0"
 MAX_WIRE = 2 * 1024 * 1024
 MAX_TEXT = 12000
 MESSAGE_PREVIEW = 4000
@@ -308,6 +309,7 @@ class Bridge:
             for message in session["messages"]:
                 self.recover_attachment_metadata(session, message)
             self.store.save(session)
+        self.teams = Teams(self)
         try:
             self.rpc = rpc_factory(self.on_message)
         except Exception as error:
@@ -343,7 +345,7 @@ class Bridge:
                 pass
         return {"protocol": PROTOCOL, "ready": True, "codexReady": self.rpc.ready,
                 "capabilities": ["terminal", "customCLI", "projects", "accessMode", "operationStatus", "optimisticMessages", "usage", "attachments", "messageBody", "manageSessions", "downloadFiles"] + (
-                    ["codexChat", "catalog", "models"] if self.rpc.ready else []),
+                    ["codexChat", "catalog", "models", "collaboration"] if self.rpc.ready else []),
                 "agents": agent_catalog(),
                 "version": BRIDGE_VERSION,
                 "root": str(self.root), "authenticated": authenticated,
@@ -353,11 +355,12 @@ class Bridge:
         with self.lock:
             if identifier in self.sessions:
                 self.update_writer_occupancy(self.sessions[identifier])
-            summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model", "agent", "mode", "completedTurnId", "pinned", "archived")}
+            summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model", "agent", "mode", "collaborationRunId", "collaborationTaskId", "completedTurnId", "pinned", "archived")}
                          for s in sorted(self.sessions.values(), key=lambda s: s["updatedAt"], reverse=True)[:1000]]
             projects = dict(self.projects)
             for summary in summaries:
-                projects.setdefault(summary["cwd"], Path(summary["cwd"]).name or summary["cwd"])
+                if not summary.get("collaborationRunId"):
+                    projects.setdefault(summary["cwd"], Path(summary["cwd"]).name or summary["cwd"])
             selected = None
             if identifier in self.sessions:
                 selected = dict(self.session(identifier))
@@ -660,6 +663,9 @@ class Bridge:
                 self.loaded.discard(identifier)
                 return
             if "id" in message:
+                if method == "item/tool/call" and session.get("collaborationRunId"):
+                    self.teams.handle_tool(message, dict(session))
+                    return
                 supported = {"item/commandExecution/requestApproval", "item/fileChange/requestApproval",
                              "item/tool/requestUserInput", "item/permissions/requestApproval"}
                 if method not in supported:
@@ -742,7 +748,17 @@ class Bridge:
         path = self.project(request.get("cwd"))
         settings = self.model_settings(request)
         access = self.access_settings(request, {"cwd": str(path)})
+        team = None
+        if request.get("collaborationRunId"):
+            with self.teams.lock:
+                run = self.teams.run(request["collaborationRunId"])
+                task = self.teams.task(run, request.get("collaborationTaskId"))
+                if str(path) != task["worktree"] or task["status"] != "starting":
+                    raise BridgeError("协作成员目录或状态不匹配。")
+                team = {"collaborationRunId": run["id"], "collaborationTaskId": task["id"]}
+                dynamic_tools = tools_for(task["role"])
         result = self.rpc.request("thread/start", {"cwd": str(path), **access["thread"],
+                                  **({"dynamicTools": dynamic_tools} if team else {}),
                                   **({"model": settings["model"]} if settings else {})})
         identifier = result["thread"]["id"]
         with self.lock:
@@ -750,10 +766,13 @@ class Bridge:
                 "status": "idle", "turnId": None, "updatedAt": time.time(), "messages": [],
                 "approvals": [], "diff": "", "error": None, "origin": "app", "readOnly": False,
                 "model": result.get("model"), "effort": settings.get("effort") or result.get("reasoningEffort"),
-                "accessMode": access["mode"]}
+                "accessMode": access["mode"], **(team or {})}
+            if team:
+                self.sessions[identifier].update(title="协作 · " + task["title"], customTitle=True)
             self.loaded.add(identifier)
             self.store.save(self.sessions[identifier])
-        self.add_project({"cwd": str(path)})
+        if not team:
+            self.add_project({"cwd": str(path)})
         return {"id": identifier}
 
     @staticmethod
@@ -903,6 +922,13 @@ class Bridge:
         identifier = request.get("sessionId")
         with self.lock:
             session = self.session(identifier)
+            if session.get("collaborationRunId"):
+                with self.teams.lock:
+                    run = self.teams.run(session["collaborationRunId"])
+                    task = self.teams.task(run, session["collaborationTaskId"])
+                    expected = "team-send-" + run["id"] + task["id"] + str(task["attempt"])
+                    if request.get("operationId") != expected or run["status"] != "running":
+                        raise BridgeError("协作成员由后台调度；请在协作面板留言或显式重试。")
             self.update_writer_occupancy(session)
             if session.get("writerOccupied"):
                 raise BridgeError(WRITER_CONFLICT)
@@ -1121,10 +1147,16 @@ class Bridge:
         return {}
 
     def begin_shutdown(self):
-        with self.mutations, self.lock:
-            if any(s["status"] in ACTIVE | {"unknown"} for s in self.sessions.values()):
-                raise BridgeError("还有运行中、待审批或结果不确定的任务，请先确认任务状态。")
-            self.stopping = True
+        with self.mutations:
+            if self.teams.active():
+                raise BridgeError("还有运行中的协作组，请先完成或停止协作。")
+            with self.lock:
+                self._begin_shutdown()
+
+    def _begin_shutdown(self):
+        if any(s["status"] in ACTIVE | {"unknown"} for s in self.sessions.values()):
+            raise BridgeError("还有运行中、待审批或结果不确定的任务，请先确认任务状态。")
+        self.stopping = True
 
     def usage(self, request):
         identifier = request.get("sessionId")
@@ -1147,6 +1179,23 @@ class Bridge:
 
     def dispatch(self, request):
         action = request.get("action")
+        if action == "teamList":
+            return {"ok": True, "result": self.teams.summaries()}
+        if action == "teamRead":
+            return {"ok": True, "result": self.teams.read(request)}
+        if action == "teamDiff":
+            return {"ok": True, "result": self.teams.diff(request)}
+        team_actions = {"teamCreate": self.teams.create, "teamMessage": self.teams.message,
+                        "teamCancel": self.teams.cancel, "teamRetry": self.teams.retry, "teamApply": self.teams.apply}
+        if action in team_actions:
+            if action == "teamCreate":
+                with self.mutations:
+                    if self.stopping:
+                        raise BridgeError("后台正在重启，请稍后再操作。")
+                    return self.store.operation(request, lambda: self.teams.create(request))
+            if self.stopping:
+                raise BridgeError("后台正在重启，请稍后再操作。")
+            return self.store.operation(request, lambda: team_actions[action](request))
         if action == "fileInfo":
             return {"ok": True, "result": self.file_info(request)}
         if action == "messageBody":
@@ -1278,6 +1327,7 @@ def serve(directory, root):
         except KeyboardInterrupt:
             pass
         finally:
+            bridge.teams.close()
             for terminal in list(bridge.terminals.values()):
                 terminal.stop()
             if bridge.rpc.process is not None:
