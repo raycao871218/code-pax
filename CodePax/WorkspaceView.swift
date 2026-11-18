@@ -37,6 +37,7 @@ struct WorkspaceView: View {
     @ObservedObject var connection: ConnectionModel
     @StateObject private var model: WorkspaceModel
     @State private var showProjects = false
+    @State private var clearPendingCreate = false
     @State private var restartBackend = false
     @State private var expandedProjects: Set<String> = []
     @State private var historySession: CodexSession?
@@ -211,7 +212,9 @@ struct WorkspaceView: View {
                         Button("刷新会话", systemImage: "arrow.clockwise") { Task { await model.reloadCurrent() } }
                             .disabled(!model.isPrepared)
                         if let selected = model.selected {
-                            Button("会话历史", systemImage: "clock") { historySession = selected }
+                            if !selected.isTerminal {
+                                Button("会话历史", systemImage: "clock") { historySession = selected }
+                            }
                             Text(selected.cwd)
                         }
                         if let session = model.sessions.first(where: { $0.id == model.selectedID }) {
@@ -262,10 +265,15 @@ struct WorkspaceView: View {
                 }
             }
         }
-        .confirmationDialog("重启 Codex 后台？", isPresented: $restartBackend, titleVisibility: .visible) {
+        .confirmationDialog("重启后台？", isPresented: $restartBackend, titleVisibility: .visible) {
             Button("重启后台并应用代理设置") { Task { await model.restart() } }
         } message: {
             Text("会保留历史会话。如果仍有运行中或待审批的任务，服务器会拒绝重启。代理设置在新的后台进程启动时生效。")
+        }
+        .confirmationDialog("已检查会话列表，清除本机待确认的新建记录？", isPresented: $clearPendingCreate, titleVisibility: .visible) {
+            Button("清除本机记录", role: .destructive) { model.discardCreate() }
+        } message: {
+            Text("服务器可能已经启动了 CLI。请先刷新并检查会话列表，清除后重新新建可能重复启动。")
         }
     }
 
@@ -301,6 +309,13 @@ struct WorkspaceView: View {
                     Text(model.status).font(.caption).foregroundStyle(.secondary)
                     Button("管理连接") { showSettings = false; onOpenConnections() }
                 }
+                if model.hasUncertainCreate {
+                    Section("待确认的新建会话") {
+                        Text("请先重试原请求，避免重复启动 CLI。")
+                        Button("重试原新建请求") { Task { await model.retryCreate() } }.disabled(model.isBusy)
+                        Button("清除待确认的新建记录") { showSettings = false; clearPendingCreate = true }
+                    }
+                }
                 Section("工作区") {
                     Button("同步历史") { Task { await model.syncHistory(reset: true) } }
                         .disabled(!model.supportsCatalog || model.isBusy)
@@ -325,60 +340,76 @@ struct WorkspaceView: View {
         let messages = theme.isCompanion ? CompanionReplyPolicy.displayedMessages(model.messages(for: session), state: companionState) : model.messages(for: session)
         let latestReplyID = CompanionReplyPolicy.latestReplyID(in: messages)
         return VStack(spacing: 0) {
-            if model.hasUncertainSend, let pendingSession = model.pendingSessionID, pendingSession != session.id {
+            if session.isTerminal {
                 HStack {
-                    Text("另一会话有消息待确认，请先处理该条消息。").font(.caption).foregroundStyle(.orange)
+                    Text(session.agentTitle + " · " + sessionStatus(session.status))
                     Spacer()
-                    Button("查看消息") { Task { await model.select(pendingSession) } }.disabled(model.isBusy)
-                }.padding(12).background(theme.card)
-            }
-            if session.readOnly == true {
-                HStack {
-                    Label(session.writerOccupied == true ? "此会话被其他 Codex 客户端占用。请退出另一端会话后重新检查。" : "此会话正在其他客户端运行，目前仅供查看。", systemImage: "lock.fill")
-                        .font(.caption).foregroundStyle(.orange)
-                    Spacer()
-                    Button("重新检查") { Task { await model.reloadCurrent() } }.disabled(model.isBusy)
-                }.padding(12).background(theme.card)
-            }
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    if session.historyTruncated {
-                        Text("当前显示最近 40 条消息，更早记录保留在服务器。")
-                            .font(.caption).foregroundStyle(.secondary)
+                    if session.isRunning {
+                        Button("结束 CLI", role: .destructive) { Task { await model.stop() } }
+                            .disabled(model.isBusy || !model.isPrepared)
                     }
-                    ForEach(ConversationEntry.group(messages)) { entry in
-                        ConversationRow(entry: entry, model: model, sessionID: session.id,
-                            avatarState: entry.id == latestReplyID ? companionState : nil)
-                    }
-                    if let error = session.error, !error.isEmpty {
-                        Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red).textSelection(.enabled)
-                    }
-                    ForEach(session.approvals) { approval in
-                        ApprovalCard(approval: approval, disabled: model.isBusy || !model.isPrepared) { decision, answers in
-                            Task { await model.answer(approval, decision: decision, answers: answers) }
+                }.padding()
+                if let error = session.error {
+                    Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(8)
+                }
+                TerminalSessionView(connection: connection, sessionID: session.id)
+                    .id(connection.profile.credentialAccount + "|" + session.id)
+            } else {
+                if model.hasUncertainSend, let pendingSession = model.pendingSessionID, pendingSession != session.id {
+                    HStack {
+                        Text("另一会话有消息待确认，请先处理该条消息。").font(.caption).foregroundStyle(.orange)
+                        Spacer()
+                        Button("查看消息") { Task { await model.select(pendingSession) } }.disabled(model.isBusy)
+                    }.padding(12).background(theme.card)
+                }
+                if session.readOnly == true {
+                    HStack {
+                        Label(session.writerOccupied == true ? "此会话被其他 Codex 客户端占用。请退出另一端会话后重新检查。" : "此会话正在其他客户端运行，目前仅供查看。", systemImage: "lock.fill")
+                            .font(.caption).foregroundStyle(.orange)
+                        Spacer()
+                        Button("重新检查") { Task { await model.reloadCurrent() } }.disabled(model.isBusy)
+                    }.padding(12).background(theme.card)
+                }
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 18) {
+                        if session.historyTruncated {
+                            Text("当前显示最近 40 条消息，更早记录保留在服务器。")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
-                    }
-                    if !session.diff.isEmpty {
-                        DisclosureGroup("当前任务的代码差异") {
-                            DiffView(text: session.diff)
-                            if let length = session.diffLength, session.diffTruncated == true {
-                                FullMessageButton(model: model, sessionID: session.id, messageID: "__diff__", length: length, plainText: true)
+                        ForEach(ConversationEntry.group(messages)) { entry in
+                            ConversationRow(entry: entry, model: model, sessionID: session.id,
+                                avatarState: entry.id == latestReplyID ? companionState : nil)
+                        }
+                        if let error = session.error, !error.isEmpty {
+                            Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red).textSelection(.enabled)
+                        }
+                        ForEach(session.approvals) { approval in
+                            ApprovalCard(approval: approval, disabled: model.isBusy || !model.isPrepared) { decision, answers in
+                                Task { await model.answer(approval, decision: decision, answers: answers) }
                             }
                         }
-                            .padding().background(Color.indigo.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
-                    }
-                    if session.status == "completed", !model.hasUncertainSend, !model.isSending {
-                        Label("回答完成", systemImage: "checkmark.circle.fill")
-                            .font(.caption.weight(.medium)).foregroundStyle(.green).padding(.top, 4)
-                    }
-                    if model.messages(for: session).isEmpty {
-                        Text("在下面输入任务，Codex 会直接在这个项目中工作。")
-                            .foregroundStyle(.secondary).padding(.vertical)
-                    }
-                }.padding(20).frame(maxWidth: 1000, alignment: .leading).frame(maxWidth: .infinity)
-            }.defaultScrollAnchor(.bottom)
-            Divider()
-            composer(session)
+                        if !session.diff.isEmpty {
+                            DisclosureGroup("当前任务的代码差异") {
+                                DiffView(text: session.diff)
+                                if let length = session.diffLength, session.diffTruncated == true {
+                                    FullMessageButton(model: model, sessionID: session.id, messageID: "__diff__", length: length, plainText: true)
+                                }
+                            }
+                                .padding().background(Color.indigo.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
+                        }
+                        if session.status == "completed", !model.hasUncertainSend, !model.isSending {
+                            Label("回答完成", systemImage: "checkmark.circle.fill")
+                                .font(.caption.weight(.medium)).foregroundStyle(.green).padding(.top, 4)
+                        }
+                        if model.messages(for: session).isEmpty {
+                            Text("在下面输入任务，Codex 会直接在这个项目中工作。")
+                                .foregroundStyle(.secondary).padding(.vertical)
+                        }
+                    }.padding(20).frame(maxWidth: 1000, alignment: .leading).frame(maxWidth: .infinity)
+                }.defaultScrollAnchor(.bottom)
+                Divider()
+                composer(session)
+            }
         }
     }
 
@@ -492,6 +523,39 @@ struct WorkspaceView: View {
 
 }
 
+private struct CLISessionPicker: View {
+    @ObservedObject var model: WorkspaceModel
+
+    var body: some View {
+        Picker("CLI", selection: $model.newAgent) {
+            ForEach(model.agents) { agent in
+                Text(agent.title + (agent.available ? "" : "（未安装）")).tag(agent.id)
+                    .disabled(!agent.available)
+            }
+            Text("自定义 CLI").tag("custom")
+        }
+        .onChange(of: model.newAgent) { _, agent in
+            model.newSessionMode = agent == "codex" && model.codexReady ? "chat" : "terminal"
+        }
+        if model.newAgent == "codex" {
+            Picker("模式", selection: $model.newSessionMode) {
+                Text("聊天").tag("chat").disabled(!model.codexReady)
+                Text("终端").tag("terminal")
+            }.pickerStyle(.segmented)
+        }
+        if model.newAgent == "custom" {
+            TextField("命令，例如 aider --model …", text: $model.customCommand, axis: .vertical)
+                .textInputAutocapitalization(.never).autocorrectionDisabled()
+            Text("命令在服务器项目目录中运行；支持带引号的参数，管道和重定向需显式使用 shell。")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        if model.createsTerminal {
+            Text("使用交互式终端，登录、模型和审批由所选 CLI 处理。")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
 private struct ProjectPicker: View {
     @ObservedObject var model: WorkspaceModel
     @Environment(\.dismiss) private var dismiss
@@ -500,13 +564,16 @@ private struct ProjectPicker: View {
     var body: some View {
         NavigationStack {
             List {
+                if model.supportsTerminal {
+                    Section("CLI 与会话模式") { CLISessionPicker(model: model) }
+                }
                 if let listing = model.listing {
                     Section("当前目录") {
                         Text(listing.path).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
                         Button("在这个目录新建会话") {
                             Task { if await model.create(cwd: listing.path) { dismiss() } }
-                        }.disabled(model.isBusy)
-                        if model.supportsCatalog {
+                        }.disabled(model.isBusy || !model.canCreateSession || model.hasUncertainCreate)
+                        if model.supportsProjects {
                             Button("仅添加这个项目") {
                                 Task { if await model.addProject(cwd: listing.path) { dismiss() } }
                             }.disabled(model.isBusy)

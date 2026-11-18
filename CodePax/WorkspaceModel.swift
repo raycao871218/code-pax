@@ -10,6 +10,13 @@ final class WorkspaceModel: ObservableObject {
     @Published private(set) var supportsAccessMode = false
     @Published private(set) var supportsSessionManagement = false
     @Published private(set) var supportsDownloads = false
+    @Published private(set) var supportsTerminal = false
+    @Published private(set) var supportsProjects = false
+    @Published private(set) var codexReady = false
+    @Published private(set) var agents: [CLIAgent] = []
+    @Published var newAgent = "codex"
+    @Published var newSessionMode = "chat"
+    @Published var customCommand = ""
     @Published private(set) var historyCursor: String?
     @Published private(set) var catalogStatus = ""
     @Published private(set) var selected: CodexSession?
@@ -17,9 +24,10 @@ final class WorkspaceModel: ObservableObject {
     @Published private(set) var isPrepared = false
     @Published private(set) var isBusy = false
     @Published private(set) var error: String?
-    @Published private(set) var status = "连接后准备 Codex 工作区"
+    @Published private(set) var status = "连接后准备工作区"
     @Published private(set) var listing: DirectoryListing?
     @Published private(set) var hasUncertainSend = false
+    @Published private(set) var hasUncertainCreate = false
     @Published private(set) var localSubmissions: [LocalSubmission] = []
     @Published private(set) var isSending = false
     @Published private(set) var accountUsage: AccountUsage?
@@ -60,6 +68,8 @@ final class WorkspaceModel: ObservableObject {
     private var storageKey: String { "workspace.\(connection.profile.endpoint).\(connection.profile.username)" }
     private var pendingKey: String { storageKey + ".pending" }
     private var outboxKey: String { storageKey + ".outbox" }
+    private var pendingCreateKey: String { storageKey + ".pendingCreate" }
+    private let pendingOperations = PendingOperationStore()
     private var activeServerKey: String?
     private var savedProxy: String {
         UserDefaults.standard.string(forKey: storageKey + ".proxy") ??
@@ -211,6 +221,13 @@ final class WorkspaceModel: ObservableObject {
         }
         saveOutbox()
     }
+
+    var createsTerminal: Bool { newAgent != "codex" || newSessionMode == "terminal" }
+    var canCreateSession: Bool {
+        if !createsTerminal { return codexReady }
+        return supportsTerminal && (newAgent == "custom" ? !customCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty :
+            agents.contains(where: { $0.id == newAgent && $0.available }))
+    }
     var visibleProjects: [CodexProject] {
         projects.filter { project in
             search.isEmpty || project.title.localizedCaseInsensitiveContains(search) || project.id.localizedCaseInsensitiveContains(search) ||
@@ -296,10 +313,14 @@ final class WorkspaceModel: ObservableObject {
         }
         defer { isBusy = false }
         do {
-            guard let url = Bundle.main.url(forResource: "bridge", withExtension: "py") else {
-                throw ConnectionError.message("App 缺少后台脚本资源，请重新构建工程。")
+            var resources: [String: String] = [:]
+            for name in ["bridge", "terminal_runtime"] {
+                guard let url = Bundle.main.url(forResource: name, withExtension: "py") else {
+                    throw ConnectionError.message("App 缺少后台脚本资源，请重新构建工程。")
+                }
+                resources[name + ".py"] = try Data(contentsOf: url).base64EncodedString()
             }
-            let encoded = try Data(contentsOf: url).base64EncodedString()
+            let resourceData = try JSONEncoder().encode(resources).base64EncodedString()
             let installer = """
             import base64,os,pathlib,tempfile
             os.umask(0o077)
@@ -307,26 +328,36 @@ final class WorkspaceModel: ObservableObject {
             directory.mkdir(parents=True,exist_ok=True,mode=0o700)
             if directory.is_symlink() or directory.stat().st_uid != os.getuid(): raise RuntimeError('Invalid bridge directory')
             directory.chmod(0o700)
-            target=directory/'bridge.py'
-            if target.is_symlink(): raise RuntimeError('Invalid bridge file')
-            with tempfile.NamedTemporaryFile(dir=directory,delete=False) as file:
-                file.write(base64.b64decode('\(encoded)',validate=True))
-                temporary=file.name
-            os.replace(temporary,target)
+            import json
+            resources=json.loads(base64.b64decode('\(resourceData)',validate=True))
+            for name,encoded in resources.items():
+                target=directory/name
+                if target.is_symlink(): raise RuntimeError('Invalid bridge file')
+                with tempfile.NamedTemporaryFile(dir=directory,delete=False) as file:
+                    file.write(base64.b64decode(encoded,validate=True))
+                    temporary=file.name
+                os.replace(temporary,target)
             print('installed')
             """
             _ = try await connection.runCommand("python3 -c " + RemoteShell.quote(installer), limit: 4096)
             let proxy = proxyURL.trimmingCharacters(in: .whitespacesAndNewlines)
             UserDefaults.standard.set(proxy, forKey: storageKey + ".proxy")
             let result: BridgeStatus = try await connection.runBridge(mode: "ensure", proxy: proxy)
-            guard (1...2).contains(result.protocol), result.ready else {
-                throw ConnectionError.message("后台协议不匹配或 Codex 未就绪。")
+            guard (1...3).contains(result.protocol), result.ready else {
+                throw ConnectionError.message("后台协议不匹配或工作区未就绪。")
             }
-            guard result.authenticated else {
+            guard result.protocol >= 3 || result.authenticated else {
                 throw ConnectionError.message("服务器的 Codex 尚未登录，请先在服务器完成 codex login。")
             }
             isPrepared = true
-            supportsCatalog = result.protocol >= 2
+            codexReady = result.codexReady ?? true
+            supportsCatalog = result.protocol >= 2 && codexReady
+            supportsTerminal = result.capabilities?.contains("terminal") == true
+            supportsProjects = result.protocol >= 2
+            agents = result.agents ?? []
+            if !codexReady && newAgent == "codex", let first = agents.first(where: { $0.available }) {
+                newAgent = first.id; newSessionMode = "terminal"
+            }
             supportsAccessMode = result.capabilities?.contains("accessMode") == true
             supportsUsage = result.capabilities?.contains("usage") == true
             supportsAttachments = result.capabilities?.contains("attachments") == true
@@ -336,14 +367,16 @@ final class WorkspaceModel: ObservableObject {
             if let selectedID { activateDraft(selectedID) }
             hasUncertainSend = UserDefaults.standard.data(forKey: pendingKey) != nil
             await reconcilePendingSend()
-            status = result.upgradePending == true ? "后台更新待完成；请先处理运行中或待审批的任务，再重新准备工作区。" : "Codex 已就绪 · \(result.accountType)"
+            hasUncertainCreate = try pendingOperations.read(pendingCreateKey) != nil
+            status = result.upgradePending == true ? "后台更新待完成；请先处理运行中或待审批的任务，再重新准备工作区。" :
+                supportsTerminal ? "工作区已就绪 · \(agents.filter(\.available).count) 种 CLI 可用" : "Codex 已就绪 · \(result.accountType)"
             try await refreshThrowing()
             await browse(result.root)
             if supportsCatalog {
                 await syncHistory(reset: true)
                 await loadModels()
-                if let selectedID { await select(selectedID) }
             }
+            if let selectedID { await select(selectedID) }
         } catch is CancellationError {
             return
         } catch {
@@ -358,7 +391,7 @@ final class WorkspaceModel: ObservableObject {
             if isPrepared { await refresh() }
             else if !isBusy, Date() >= nextPrepareAttempt { await prepare() }
             ticks += 1
-            if isPrepared, !isBusy, ticks % 15 == 0 { await syncHistory(reset: true) }
+            if isPrepared, supportsCatalog, !isBusy, ticks % 15 == 0 { await syncHistory(reset: true) }
             do { try await Task.sleep(for: .seconds(2)) } catch { return }
         }
     }
@@ -446,7 +479,10 @@ final class WorkspaceModel: ObservableObject {
         localSubmissions = []
         attachmentDrafts = [:]; supportsAttachments = false
         completionReads = CompletionReads(); readingSessionID = nil
+        supportsTerminal = false; supportsProjects = false; codexReady = false; agents = []
+        newAgent = "codex"; newSessionMode = "chat"; customCommand = ""
         selectedModel = ""; selectedEffort = ""; draft = ""; hasUncertainSend = false; listing = nil; error = nil
+        hasUncertainCreate = false
     }
 
     func syncHistory(reset: Bool) async {
@@ -470,7 +506,7 @@ final class WorkspaceModel: ObservableObject {
                     throw ConnectionError.message("服务器返回重复的历史分页游标，请重新同步。")
                 }
             } while cursor != nil
-            catalogStatus = "已读取服务器 CLI / Codex 会话，按项目分组。" + (skipped > 0 ? "有 \(skipped) 个会话的目录不可用或超出工作根目录。" : "")
+            catalogStatus = "已读取服务器 Codex 历史，按项目分组。" + (skipped > 0 ? "有 \(skipped) 个会话的目录不可用或超出工作根目录。" : "")
         } catch { self.error = error.localizedDescription }
     }
 
@@ -537,7 +573,7 @@ final class WorkspaceModel: ObservableObject {
         activateDraft(identifier)
         selected = nil
         UserDefaults.standard.set(identifier, forKey: storageKey + ".selection")
-        if supportsCatalog {
+        if supportsCatalog || supportsTerminal {
             do { let _: JSONValue = try await request(["action": .string("open"), "sessionId": .string(identifier)]) }
             catch { self.error = error.localizedDescription }
         }
@@ -567,17 +603,54 @@ final class WorkspaceModel: ObservableObject {
     }
 
     func create(cwd: String) async -> Bool {
+        guard canCreateSession || hasUncertainCreate else { return false }
         var created = false
         await action {
-            try self.validateAccessMode()
-            var fields: [String: JSONValue] = ["action": .string("create"), "cwd": .string(cwd), "operationId": .string(UUID().uuidString)]
-            self.addModelSettings(to: &fields)
+            let fields: [String: JSONValue]
+            if let pending = try self.pendingOperations.read(self.pendingCreateKey) {
+                fields = try JSONDecoder().decode([String: JSONValue].self, from: pending)
+                guard fields["cwd"]?.string == cwd else {
+                    throw ConnectionError.message("另一个目录的新建结果待确认，请先重试原新建请求。")
+                }
+            } else {
+                var body: [String: JSONValue] = ["action": .string("create"), "cwd": .string(cwd), "operationId": .string(UUID().uuidString)]
+                if self.supportsTerminal {
+                    body["agent"] = .string(self.newAgent)
+                    body["mode"] = .string(self.createsTerminal ? "terminal" : "chat")
+                    if self.newAgent == "custom" { body["command"] = .string(self.customCommand) }
+                }
+                if !self.createsTerminal {
+                    try self.validateAccessMode()
+                    self.addModelSettings(to: &body)
+                }
+                fields = body
+                try self.pendingOperations.save(JSONEncoder().encode(fields), for: self.pendingCreateKey)
+            }
+            self.hasUncertainCreate = true
             let value: JSONValue = try await self.request(fields)
             guard let id = value["id"].string else { throw ConnectionError.message("服务器没有返回新会话 ID。") }
+            try self.pendingOperations.remove(self.pendingCreateKey)
+            self.hasUncertainCreate = false
             await self.select(id)
             created = true
         }
         return created
+    }
+
+    func retryCreate() async {
+        do {
+            guard let pending = try pendingOperations.read(pendingCreateKey) else { hasUncertainCreate = false; return }
+            let fields = try JSONDecoder().decode([String: JSONValue].self, from: pending)
+            guard let cwd = fields["cwd"]?.string else { throw ConnectionError.message("待确认的新建记录格式不正确。") }
+            _ = await create(cwd: cwd)
+        } catch { self.error = error.localizedDescription }
+    }
+
+    func discardCreate() {
+        do {
+            try pendingOperations.remove(pendingCreateKey)
+            hasUncertainCreate = false
+        } catch { self.error = error.localizedDescription }
     }
 
     private func reconcilePendingSend() async {
@@ -695,7 +768,7 @@ final class WorkspaceModel: ObservableObject {
 
     var canSubmit: Bool {
         connection.isConnected && isPrepared && !isBusy && !isPreparingAttachment && !hasUncertainSend &&
-        selected != nil && selected?.isRunning != true && selected?.readOnly != true &&
+        selected != nil && selected?.isTerminal != true && selected?.isRunning != true && selected?.readOnly != true &&
         (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 
@@ -728,7 +801,7 @@ final class WorkspaceModel: ObservableObject {
         let retryPending = retryMessageID != nil
         let savedRetry = retryMessageID.flatMap { retryRequest(for: $0) }
         if retryPending, savedRetry == nil { error = "找不到这条消息的重试记录，请刷新会话确认状态。"; return }
-        guard let identifier = selectedID else {
+        guard let identifier = selectedID, selected?.isTerminal != true else {
             error = "请先选择一个会话。"
             return
         }
@@ -853,6 +926,9 @@ final class WorkspaceModel: ObservableObject {
             let known = Set(selected.messages.map(\.id))
             localSubmissions.removeAll { $0.sessionID == selected.id && known.contains($0.id) && $0.state == "accepted" }
             saveOutbox()
+        }
+        if snapshot.codexReady == false {
+            codexReady = false; supportsCatalog = false
         }
         if !snapshot.ready {
             isPrepared = false

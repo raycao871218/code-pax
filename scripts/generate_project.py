@@ -61,6 +61,12 @@ plist = add("Info.plist", {"isa": "PBXFileReference", "lastKnownFileType": "text
 bridge_file = add("BridgeResource", {"isa": "PBXFileReference", "lastKnownFileType": "text.script.python",
                                    "path": "../backend/bridge.py", "sourceTree": "<group>"})
 bridge_build = add("BridgeResourceBuild", {"isa": "PBXBuildFile", "fileRef": bridge_file})
+terminal_backend = add("TerminalBackend", {"isa": "PBXFileReference", "lastKnownFileType": "text.script.python",
+    "path": "../backend/terminal_runtime.py", "sourceTree": "<group>"})
+terminal_backend_build = add("TerminalBackendBuild", {"isa": "PBXBuildFile", "fileRef": terminal_backend})
+terminal_assets = add("TerminalAssets", {"isa": "PBXFileReference", "lastKnownFileType": "folder",
+    "path": "Terminal", "sourceTree": "<group>"})
+terminal_assets_build = add("TerminalAssetsBuild", {"isa": "PBXBuildFile", "fileRef": terminal_assets})
 assets_file = add("AssetsResource", {"isa": "PBXFileReference", "lastKnownFileType": "folder.assetcatalog",
                                    "path": "Assets.xcassets", "sourceTree": "<group>"})
 assets_build = add("AssetsResourceBuild", {"isa": "PBXBuildFile", "fileRef": assets_file})
@@ -86,7 +92,7 @@ app = add("AppProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper
                          "path": "CodePax.app", "sourceTree": "BUILT_PRODUCTS_DIR"})
 tests = add("TestsProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper.cfbundle",
                              "path": "CodePaxTests.xctest", "sourceTree": "BUILT_PRODUCTS_DIR"})
-app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + [plist, bridge_file, assets_file],
+app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + [plist, bridge_file, assets_file, terminal_backend, terminal_assets],
                              "path": "CodePax", "sourceTree": "<group>"})
 test_group = add("TestsGroup", {"isa": "PBXGroup", "children": test_refs,
                                 "path": "CodePaxTests", "sourceTree": "<group>"})
@@ -120,7 +126,7 @@ app_target = add("AppTarget", {
     "isa": "PBXNativeTarget", "buildConfigurationList": app_configs,
     "buildPhases": [phase("AppSources", "PBXSourcesBuildPhase", source_builds),
                     phase("AppFrameworks", "PBXFrameworksBuildPhase", framework_builds),
-                    phase("AppResources", "PBXResourcesBuildPhase", [bridge_build, assets_build])],
+                    phase("AppResources", "PBXResourcesBuildPhase", [bridge_build, assets_build, terminal_backend_build, terminal_assets_build])],
     "buildRules": [], "dependencies": [], "name": "CodePax", "productName": "CodePax",
     "productReference": app, "productType": "com.apple.product-type.application",
     "packageProductDependencies": products,
