@@ -580,47 +580,20 @@ struct WorkspaceView: View {
     }
 
     private var modelControls: some View {
-        HStack(spacing: 12) {
-            Menu {
-                Picker("模型", selection: Binding(get: { model.selectedModel }, set: {
-                    model.selectedModel = $0; model.modelChanged()
-                })) {
-                    Text("沿用会话 / 默认模型").tag("")
-                    if !model.selectedModel.isEmpty && !model.chatModels.contains(where: { $0.model == model.selectedModel }) {
-                        Text(model.selectedModel).tag(model.selectedModel)
-                    }
-                    ForEach(model.chatModels) { Text($0.displayName).tag($0.model) }
-                }
-                if let chosen = model.chosenModel, !chosen.supportedReasoningEfforts.isEmpty {
-                    Picker("推理强度", selection: $model.selectedEffort) {
-                        Text("默认推理强度").tag("")
-                        ForEach(chosen.supportedReasoningEfforts) { AppText(model.isClaudeChat ? $0.title : $0.reasoningEffort).tag($0.reasoningEffort) }
-                    }
-                }
-                Divider()
-                Picker("下次任务的权限", selection: Binding(get: { model.accessMode }, set: {
-                    model.accessMode = $0; model.accessModeChanged()
-                })) {
-                    ForEach(AccessMode.allCases) { mode in Label(LocalizedStringKey(mode.title), systemImage: mode.symbol).tag(mode) }
-                }.disabled(!model.supportsAccessMode)
-                if !model.isClaudeChat {
-                    Button("Codex 用量与额度", systemImage: "chart.pie") { showUsage = true }
-                }
-                Button("刷新模型与强度") { Task { await model.loadModels() } }
-                if model.isClaudeChat && !model.supportsClaudeModels {
-                    Button("更新聊天后台") { Task { await model.prepare() } }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    if sizeClass == .regular {
-                        AppText((model.chosenModel?.displayName ?? (model.selectedModel.isEmpty ? "默认模型" : model.selectedModel)) +
-                             (model.isClaudeChat && !model.selectedEffort.isEmpty ? " · " + model.selectedEffort : ""))
-                            .lineLimit(1).frame(maxWidth: 130)
-                    } else { Image(systemName: "slider.horizontal.3") }
-                    Image(systemName: "chevron.down").font(.caption2)
-                }
-            }.disabled(!(model.supportsCatalog || model.isClaudeChat) || model.isBusy)
-        }.font(.caption).tint(.primary)
+        ModelMenu(
+            models: model.chatModels, chosen: model.chosenModel,
+            selectedModel: model.selectedModel, selectedEffort: model.selectedEffort, accessMode: model.accessMode,
+            isClaudeChat: model.isClaudeChat, supportsAccessMode: model.supportsAccessMode,
+            needsBackendUpdate: model.isClaudeChat && !model.supportsClaudeModels,
+            enabled: (model.supportsCatalog || model.isClaudeChat) && !model.isBusy,
+            compact: sizeClass != .regular,
+            selectModel: { model.selectedModel = $0; model.modelChanged() },
+            selectEffort: { model.selectedEffort = $0 },
+            selectAccess: { model.accessMode = $0; model.accessModeChanged() },
+            showUsage: { showUsage = true },
+            refresh: { Task { await model.loadModels() } },
+            updateBackend: { Task { await model.prepare() } }
+        ).equatable()
     }
 
     private var usageIconColor: Color {
@@ -632,6 +605,74 @@ struct WorkspaceView: View {
         }
     }
 
+}
+
+/// The model / effort / permission menu. It is compared by value only (closures are ignored),
+/// so the workspace's periodic refreshes cannot rebuild it while the user is choosing.
+private struct ModelMenu: View, Equatable {
+    let models: [CodexModel]
+    let chosen: CodexModel?
+    let selectedModel: String
+    let selectedEffort: String
+    let accessMode: AccessMode
+    let isClaudeChat: Bool
+    let supportsAccessMode: Bool
+    let needsBackendUpdate: Bool
+    let enabled: Bool
+    let compact: Bool
+    let selectModel: (String) -> Void
+    let selectEffort: (String) -> Void
+    let selectAccess: (AccessMode) -> Void
+    let showUsage: () -> Void
+    let refresh: () -> Void
+    let updateBackend: () -> Void
+
+    static func == (a: Self, b: Self) -> Bool {
+        a.models == b.models && a.chosen == b.chosen && a.selectedModel == b.selectedModel &&
+        a.selectedEffort == b.selectedEffort && a.accessMode == b.accessMode &&
+        a.isClaudeChat == b.isClaudeChat && a.supportsAccessMode == b.supportsAccessMode &&
+        a.needsBackendUpdate == b.needsBackendUpdate && a.enabled == b.enabled && a.compact == b.compact
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Menu {
+                Picker("模型", selection: Binding(get: { selectedModel }, set: selectModel)) {
+                    Text("沿用会话 / 默认模型").tag("")
+                    if !selectedModel.isEmpty && !models.contains(where: { $0.model == selectedModel }) {
+                        Text(selectedModel).tag(selectedModel)
+                    }
+                    ForEach(models) { Text($0.displayName).tag($0.model) }
+                }
+                if let chosen, !chosen.supportedReasoningEfforts.isEmpty {
+                    Picker("推理强度", selection: Binding(get: { selectedEffort }, set: selectEffort)) {
+                        Text("默认推理强度").tag("")
+                        ForEach(chosen.supportedReasoningEfforts) { AppText(isClaudeChat ? $0.title : $0.reasoningEffort).tag($0.reasoningEffort) }
+                    }
+                }
+                Divider()
+                Picker("下次任务的权限", selection: Binding(get: { accessMode }, set: selectAccess)) {
+                    ForEach(AccessMode.allCases) { mode in Label(LocalizedStringKey(mode.title), systemImage: mode.symbol).tag(mode) }
+                }.disabled(!supportsAccessMode)
+                if !isClaudeChat {
+                    Button("Codex 用量与额度", systemImage: "chart.pie", action: showUsage)
+                }
+                Button("刷新模型与强度", action: refresh)
+                if needsBackendUpdate {
+                    Button("更新聊天后台", action: updateBackend)
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    if !compact {
+                        AppText((chosen?.displayName ?? (selectedModel.isEmpty ? "默认模型" : selectedModel)) +
+                             (isClaudeChat && !selectedEffort.isEmpty ? " · " + selectedEffort : ""))
+                            .lineLimit(1).frame(maxWidth: 130)
+                    } else { Image(systemName: "slider.horizontal.3") }
+                    Image(systemName: "chevron.down").font(.caption2)
+                }
+            }.disabled(!enabled)
+        }.font(.caption).tint(.primary)
+    }
 }
 
 private struct ProjectPicker: View {

@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 import ImageIO
 
-struct UploadedAttachment: Codable, Identifiable, Sendable {
+struct UploadedAttachment: Codable, Identifiable, Sendable, Equatable {
     let id: String
     let name: String
     let size: Int

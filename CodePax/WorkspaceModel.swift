@@ -555,7 +555,14 @@ final class WorkspaceModel: ObservableObject {
 
     private func acknowledgeVisibleCompletion() {
         guard let selected, selected.id == readingSessionID else { return }
-        completionReads.markRead(id: selected.id, completedTurnID: selected.completedTurnId)
+        var reads = completionReads
+        reads.markRead(id: selected.id, completedTurnID: selected.completedTurnId)
+        updateCompletionReads(reads)
+    }
+
+    private func updateCompletionReads(_ reads: CompletionReads) {
+        guard reads != completionReads else { return }
+        completionReads = reads
         saveCompletionReads()
     }
 
@@ -1072,18 +1079,22 @@ final class WorkspaceModel: ObservableObject {
         var fields = ["action": JSONValue.string("snapshot")]
         if let requestedID { fields["sessionId"] = .string(requestedID) }
         let snapshot: CodexSnapshot = try await request(fields)
-        sessions = snapshot.sessions
-        for session in sessions {
-            completionReads.observe(id: session.id, completedTurnID: session.completedTurnId)
+        // Publish only real changes. Every @Published assignment re-renders observers,
+        // and a refresh every 2 seconds would otherwise rebuild open menus (the model
+        // picker jumped back to the bottom while the user was choosing).
+        if sessions != snapshot.sessions { sessions = snapshot.sessions }
+        var reads = completionReads
+        for session in snapshot.sessions {
+            reads.observe(id: session.id, completedTurnID: session.completedTurnId)
         }
-        saveCompletionReads()
-        if let projects = snapshot.projects { self.projects = projects }
-        else {
-            self.projects = Array(Set(sessions.map(\.cwd))).sorted().map { CodexProject(id: $0, title: URL(fileURLWithPath: $0).lastPathComponent) }
+        updateCompletionReads(reads)
+        let newProjects = snapshot.projects ?? Array(Set(snapshot.sessions.map(\.cwd))).sorted().map {
+            CodexProject(id: $0, title: URL(fileURLWithPath: $0).lastPathComponent)
         }
+        if projects != newProjects { projects = newProjects }
         guard selectedID == requestedID else { return }
         if sessions.contains(where: { $0.id == requestedID && $0.archived == true }) { clearSelection(); return }
-        selected = snapshot.selected
+        if selected != snapshot.selected { selected = snapshot.selected }
         acknowledgeVisibleCompletion()
         if let selected {
             let known = Set(selected.messages.map(\.id))
