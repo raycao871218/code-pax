@@ -8,6 +8,7 @@ final class WorkspaceModel: ObservableObject {
     @Published private(set) var models: [CodexModel] = []
     @Published private(set) var claudeModels: [CodexModel] = []
     @Published private(set) var supportsClaudeModels = false
+    @Published private(set) var supportsClaudeImport = false
     @Published private(set) var supportsCatalog = false
     @Published private(set) var supportsAccessMode = false
     @Published private(set) var supportsSessionManagement = false
@@ -451,6 +452,7 @@ final class WorkspaceModel: ObservableObject {
             supportsTerminal = result.capabilities?.contains("terminal") == true
             supportsClaudeChat = result.capabilities?.contains("claudeChat") == true
             supportsClaudeModels = result.capabilities?.contains("claudeModels") == true
+            supportsClaudeImport = result.capabilities?.contains("claudeImport") == true
             supportsAgentConfiguration = result.capabilities?.contains("agentConfiguration") == true
             supportsProjects = result.protocol >= 2
             agents = result.agents ?? []
@@ -472,10 +474,10 @@ final class WorkspaceModel: ObservableObject {
                 supportsTerminal ? "工作区已就绪 · \(agents.filter(\.available).count) 种 CLI 可用" : "Codex 已就绪 · \(result.accountType)"
             try await refreshThrowing()
             await browse(result.root)
-            if supportsCatalog {
+            if supportsCatalog || supportsClaudeImport {
                 await syncHistory(reset: true)
-                await loadModels()
             }
+            if supportsCatalog { await loadModels() }
             if let selectedID { await select(selectedID) }
         } catch is CancellationError {
             return
@@ -491,7 +493,7 @@ final class WorkspaceModel: ObservableObject {
             if isPrepared { await refresh() }
             else if !isBusy, Date() >= nextPrepareAttempt { await prepare() }
             ticks += 1
-            if isPrepared, supportsCatalog, !isBusy, ticks % 15 == 0 { await syncHistory(reset: true) }
+            if isPrepared, supportsCatalog || supportsClaudeImport, !isBusy, ticks % 15 == 0 { await syncHistory(reset: true) }
             do { try await Task.sleep(for: .seconds(2)) } catch { return }
         }
     }
@@ -573,7 +575,7 @@ final class WorkspaceModel: ObservableObject {
         supportsCollaboration = false
         draftOwner = nil
         nextPrepareAttempt = .distantPast
-        sessions = []; projects = []; models = []; claudeModels = []; supportsClaudeModels = false; selected = nil; selectedID = nil
+        sessions = []; projects = []; models = []; claudeModels = []; supportsClaudeModels = false; supportsClaudeImport = false; selected = nil; selectedID = nil
         isPrepared = false; supportsCatalog = false; historyCursor = nil; catalogStatus = ""
         supportsAccessMode = false; supportsSessionManagement = false; supportsDownloads = false
         supportsUsage = false; accountUsage = nil; usageError = nil
@@ -589,26 +591,34 @@ final class WorkspaceModel: ObservableObject {
     }
 
     func syncHistory(reset: Bool) async {
-        guard supportsCatalog, !isSyncingHistory else { return }
+        guard supportsCatalog || supportsClaudeImport, !isSyncingHistory else { return }
         isSyncingHistory = true
         defer { isSyncingHistory = false }
         do {
-            var cursor = reset ? nil : historyCursor
-            var seen: Set<String> = []
             var skipped = 0
-            repeat {
+            if supportsCatalog {
+                var cursor = reset ? nil : historyCursor
+                var seen: Set<String> = []
+                repeat {
+                    try Task.checkCancellation()
+                    var fields = ["action": JSONValue.string("catalog")]
+                    if let cursor { fields["cursor"] = .string(cursor) }
+                    let page: CodexCatalogPage = try await request(fields)
+                    historyCursor = page.nextCursor
+                    skipped += page.skipped
+                    try await refreshThrowing()
+                    cursor = page.nextCursor
+                    if let cursor, !seen.insert(cursor).inserted {
+                        throw ConnectionError.message("服务器返回重复的历史分页游标，请重新同步。")
+                    }
+                } while cursor != nil
+            }
+            if supportsClaudeImport {
                 try Task.checkCancellation()
-                var fields = ["action": JSONValue.string("catalog")]
-                if let cursor { fields["cursor"] = .string(cursor) }
-                let page: CodexCatalogPage = try await request(fields)
-                historyCursor = page.nextCursor
+                let page: CodexCatalogPage = try await request(["action": .string("claudeCatalog")])
                 skipped += page.skipped
-                try await refreshThrowing()
-                cursor = page.nextCursor
-                if let cursor, !seen.insert(cursor).inserted {
-                    throw ConnectionError.message("服务器返回重复的历史分页游标，请重新同步。")
-                }
-            } while cursor != nil
+                if page.imported > 0 { try await refreshThrowing() }
+            }
             catalogStatus = "已读取服务器 Codex 历史，按项目分组。" + (skipped > 0 ? "有 \(skipped) 个会话的目录不可用或超出工作根目录。" : "")
         } catch { self.error = error.localizedDescription }
     }

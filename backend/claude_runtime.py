@@ -12,10 +12,98 @@ import threading
 import time
 import uuid
 import hashlib
+import re
+from pathlib import Path
 
 from terminal_runtime import launch_configuration
 
 MAX_LINE = 8 * 1024 * 1024
+
+
+IMPORT_BATCH = 20          # transcripts parsed per sync; the rest arrive on later syncs
+IMPORT_MAX_BYTES = 20 * 1024 * 1024
+IMPORT_MAX_MESSAGES = 300
+IMPORT_ACTIVE_SECONDS = 20  # a transcript written this recently is probably in use elsewhere
+_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def claude_projects_directory():
+    return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
+
+
+def _text_blocks(content):
+    if isinstance(content, str):
+        return content
+    return "\n".join(b.get("text", "") for b in content
+                     if isinstance(b, dict) and b.get("type") == "text")
+
+
+def parse_transcript(path):
+    """Read one Claude Code JSONL transcript.
+
+    Returns ``{"cwd", "title", "customTitle", "messages"}``; ``cwd`` is None when the
+    file records no working directory. Entries written by subagents, meta/system
+    injections and unreadable lines are skipped, never fatal.
+    """
+    cwd = title = custom = None
+    messages, tools = [], {}
+    with open(path, "rb") as handle:
+        for raw in handle:
+            if len(raw) > MAX_LINE:
+                continue
+            try:
+                entry = json.loads(raw)
+            except ValueError:
+                continue
+            if not isinstance(entry, dict):
+                continue
+            kind = entry.get("type")
+            if kind == "custom-title" and entry.get("customTitle"):
+                custom = str(entry["customTitle"])
+                continue
+            if entry.get("isSidechain") or entry.get("isMeta"):
+                continue
+            if not cwd and isinstance(entry.get("cwd"), str):
+                cwd = entry["cwd"]
+            message = entry.get("message")
+            if kind not in {"user", "assistant"} or not isinstance(message, dict):
+                continue
+            key = str(entry.get("uuid") or len(messages))
+            content = message.get("content")
+            if kind == "user":
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "tool_result":
+                            item = tools.get(block.get("tool_use_id"))
+                            if item:
+                                value = block.get("content", "")
+                                output = value if isinstance(value, str) else "\n".join(
+                                    b.get("text", "") for b in value
+                                    if isinstance(b, dict) and b.get("type") == "text")
+                                item.update(text=item["text"] + "\n" + output,
+                                            status="failed" if block.get("is_error") else "completed")
+                text = _text_blocks(content).strip()
+                # Slash-command echoes and hook output are CLI plumbing, not conversation.
+                if text and not text.startswith(("<command-", "<local-command", "<system-reminder")):
+                    messages.append({"id": key, "kind": "userMessage", "text": text, "status": "completed"})
+                    title = title or text
+            else:
+                for index, block in enumerate(content if isinstance(content, list) else []):
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") == "text" and block.get("text", "").strip():
+                        messages.append({"id": key + ":" + str(index), "kind": "agentMessage",
+                                         "text": block["text"], "status": "completed"})
+                    elif block.get("type") == "tool_use":
+                        name, value = block.get("name", "Tool"), block.get("input", {})
+                        item = {"id": str(block.get("id") or key + ":" + str(index)),
+                                "kind": "commandExecution" if name == "Bash" else "toolCall",
+                                "text": name + "\n" + json.dumps(value, ensure_ascii=False, indent=2),
+                                "status": "completed"}
+                        tools[block.get("id")] = item
+                        messages.append(item)
+    return {"cwd": cwd, "title": (custom or title or "").strip(), "customTitle": bool(custom),
+            "messages": messages[-IMPORT_MAX_MESSAGES:]}
 
 
 def configuration(raw=None, model=None):
@@ -296,6 +384,71 @@ class ClaudeChat:
             bridge.store.save(bridge.sessions[identifier])
         bridge.add_project({"cwd": str(path)})
         return {"id": identifier}
+
+    def catalog(self, request):
+        """Import Claude Code sessions started outside this app (desktop terminal, IDE).
+
+        Imported sessions resume through the normal ``--resume`` path. The transcript is
+        a snapshot: it is re-read only while this app has not sent anything itself.
+        """
+        bridge = self.bridge
+        root = claude_projects_directory()
+        files = []
+        try:
+            for path in root.glob("*/*.jsonl"):
+                if _UUID.match(path.stem):
+                    try:
+                        info = path.stat()
+                    except OSError:
+                        continue
+                    files.append((info.st_mtime, info.st_size, path))
+        except OSError:
+            pass
+        files.sort(reverse=True)
+        imported = skipped = parsed = 0
+        for mtime, size, path in files[:200]:
+            identifier = "claude:" + path.stem
+            with bridge.lock:
+                known = bridge.sessions.get(identifier)
+                if known is not None and known.get("origin") != "claude":
+                    continue  # created by this app; it already holds the live history
+                active = (time.time() - mtime) < IMPORT_ACTIVE_SECONDS and not (known or {}).get("turnId")
+                if known is not None and known["status"] in {"idle", "externalActive"} and not known.get("turnId"):
+                    known.update(status="externalActive" if active else "idle", readOnly=active)
+                refresh = known is not None and not known.get("turnId") and known.get("claudeFileSize") != size
+                if known is not None and not refresh:
+                    continue
+            if size > IMPORT_MAX_BYTES or parsed >= IMPORT_BATCH:
+                if known is None:
+                    skipped += 1
+                continue
+            parsed += 1
+            try:
+                transcript = parse_transcript(path)
+                project = bridge.project(transcript["cwd"]) if transcript["cwd"] else None
+            except Exception:  # unreadable file, or a cwd outside the allowed root
+                project = None
+            if project is None:
+                skipped += 1
+                continue
+            with bridge.lock:
+                known = bridge.sessions.get(identifier)
+                if known is not None and known.get("turnId"):
+                    continue  # this app started using it while we were parsing
+                title = (transcript["title"] or project.name or str(project))[:100 if transcript["customTitle"] else 48]
+                session = known or {"id": identifier, "remoteThreadId": path.stem, "cwd": str(project),
+                    "turnId": None, "approvals": [], "diff": "", "error": None, "origin": "claude",
+                    "agent": "claude", "mode": "chat", "model": None, "effort": None,
+                    "accessMode": "default", "claudeStarted": True, "historyLoaded": True}
+                if known is None or not known.get("customTitle"):
+                    session.update(title=title, customTitle=transcript["customTitle"])
+                active = (time.time() - mtime) < IMPORT_ACTIVE_SECONDS
+                session.update(messages=transcript["messages"], claudeFileSize=size, updatedAt=mtime,
+                               status="externalActive" if active else "idle", readOnly=active)
+                bridge.sessions[identifier] = session
+                bridge.store.save(session)
+                imported += known is None
+        return {"nextCursor": None, "imported": imported, "skipped": skipped}
 
     def send(self, request):
         bridge = self.bridge
