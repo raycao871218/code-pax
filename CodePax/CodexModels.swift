@@ -98,14 +98,14 @@ enum ComposerState: Equatable {
     }
 }
 
-struct TokenBreakdown: Decodable {
+struct TokenBreakdown: Decodable, Equatable {
     let totalTokens: Int
     let inputTokens: Int
     let cachedInputTokens: Int
     let outputTokens: Int
     let reasoningOutputTokens: Int
 }
-struct ThreadTokenUsage: Decodable {
+struct ThreadTokenUsage: Decodable, Equatable {
     let total: TokenBreakdown
     let last: TokenBreakdown
     let modelContextWindow: Int?
@@ -193,7 +193,7 @@ struct DirectoryListing: Decodable {
     let directories: [DirectoryEntry]
 }
 
-struct CodexSessionSummary: Decodable, Identifiable {
+struct CodexSessionSummary: Decodable, Identifiable, Equatable {
     let id: String
     let title: String
     let cwd: String
@@ -211,7 +211,7 @@ struct CodexSessionSummary: Decodable, Identifiable {
     var collaborationTaskId: String? = nil
 }
 
-struct CodexMessage: Decodable, Identifiable {
+struct CodexMessage: Decodable, Identifiable, Equatable {
     let id: String
     let kind: String
     let text: String
@@ -325,7 +325,7 @@ enum AccessMode: String, CaseIterable, Identifiable {
     var symbol: String { self == .fullAccess ? "lock.open" : "lock.shield" }
 }
 
-struct CodexApproval: Decodable, Identifiable {
+struct CodexApproval: Decodable, Identifiable, Equatable {
     let id: String
     let method: String
     let params: JSONValue
@@ -338,7 +338,7 @@ struct CodexApproval: Decodable, Identifiable {
     }
 }
 
-struct CodexSession: Decodable, Identifiable {
+struct CodexSession: Decodable, Identifiable, Equatable {
     let id: String
     let title: String
     let cwd: String
@@ -387,7 +387,7 @@ func cliAgentTitle(_ agent: String) -> String {
     }
 }
 
-struct CodexProject: Decodable, Identifiable { let id: String; let title: String }
+struct CodexProject: Decodable, Identifiable, Equatable { let id: String; let title: String }
 struct CodexCatalogPage: Decodable { let nextCursor: String?; let imported: Int; let skipped: Int }
 struct CodexHistoryPage: Decodable { let messages: [CodexMessage]; let nextCursor: String? }
 struct CodexEffort: Decodable, Identifiable {
@@ -437,8 +437,8 @@ func sessionStatus(_ value: String) -> String {
 }
 
 /// Persist completion receipts by turn, so metadata updates cannot create unread badges.
-struct CompletionReads: Codable {
-    struct Receipt: Codable {
+struct CompletionReads: Codable, Equatable {
+    struct Receipt: Codable, Equatable {
         var latest: String?
         var read: String?
     }
