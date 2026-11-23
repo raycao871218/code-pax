@@ -65,6 +65,24 @@ struct BridgeStatus: Decodable {
     let capabilities: [String]?
 }
 
+/// Protocol range this app build understands. Raise `supported.upperBound`
+/// together with `PROTOCOL` in backend/bridge.py.
+enum BridgeCompatibility {
+    static let supported = 1...3
+
+    /// A user-facing reason the bridge cannot be used, or nil when compatible.
+    static func problem(for status: BridgeStatus) -> String? {
+        if status.protocol > supported.upperBound {
+            return "服务器后台协议 (v\(status.protocol)) 比此 App 新，请更新 Code Pax 后再连接。"
+        }
+        if status.protocol < supported.lowerBound {
+            return "服务器后台协议 (v\(status.protocol)) 过旧，请重新准备工作区以更新后台。"
+        }
+        if !status.ready { return "后台尚未就绪，请稍后重试。" }
+        return nil
+    }
+}
+
 struct PendingSendStatus: Decodable {
     let state: String
     var isResolved: Bool { state == "accepted" || state == "rejected" }

@@ -439,8 +439,8 @@ final class WorkspaceModel: ObservableObject {
             let proxy = proxyURL.trimmingCharacters(in: .whitespacesAndNewlines)
             UserDefaults.standard.set(proxy, forKey: storageKey + ".proxy")
             let result: BridgeStatus = try await connection.runBridge(mode: "ensure", proxy: proxy)
-            guard (1...3).contains(result.protocol), result.ready else {
-                throw ConnectionError.message("后台协议不匹配或工作区未就绪。")
+            if let problem = BridgeCompatibility.problem(for: result) {
+                throw ConnectionError.message(problem)
             }
             guard result.protocol >= 3 || result.authenticated else {
                 throw ConnectionError.message("服务器的 Codex 尚未登录，请先在服务器完成 codex login。")

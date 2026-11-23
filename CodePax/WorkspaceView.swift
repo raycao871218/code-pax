@@ -281,18 +281,7 @@ struct WorkspaceView: View {
         .onChange(of: model.projects.map(\.id)) { old, new in
             expandedProjects.formUnion(Set(new).subtracting(old))
         }
-        .task(id: connection.profile.credentialAccount + "|" + String(connection.isConnected)) {
-            model.connectionChanged()
-            if connection.isConnected {
-                let workspace = model
-                await withTaskGroup(of: Void.self) { group in
-                    group.addTask { await workspace.pollUsage() }
-                    await workspace.prepare()
-                    group.addTask { await workspace.poll() }
-                    await group.waitForAll()
-                }
-            }
-        }
+        .task(id: connectionTaskID) { await runWorkspaceTasks() }
         .confirmationDialog("重启后台？", isPresented: $restartBackend, titleVisibility: .visible) {
             Button("重启后台并应用代理设置") { Task { await model.restart() } }
         } message: {
@@ -302,6 +291,22 @@ struct WorkspaceView: View {
             Button("清除本机记录", role: .destructive) { model.discardCreate() }
         } message: {
             Text("服务器可能已经启动了 CLI。请先刷新并检查会话列表，清除后重新新建可能重复启动。")
+        }
+    }
+
+    private var connectionTaskID: String {
+        connection.profile.credentialAccount + "|" + String(connection.isConnected)
+    }
+
+    private func runWorkspaceTasks() async {
+        model.connectionChanged()
+        guard connection.isConnected else { return }
+        let workspace = model
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await workspace.pollUsage() }
+            await workspace.prepare()
+            group.addTask { await workspace.poll() }
+            await group.waitForAll()
         }
     }
 
