@@ -41,7 +41,7 @@ class TeamRPC:
 class CollaborationTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
-        self.base = Path(self.temporary.name)
+        self.base = Path(self.temporary.name).resolve()
         self.root = self.base / "projects"
         self.root.mkdir()
         self.repo = self.root / "demo with spaces"

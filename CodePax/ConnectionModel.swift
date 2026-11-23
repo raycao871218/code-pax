@@ -67,8 +67,11 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--preview-connections") || ProcessInfo.processInfo.arguments.contains("--preview-terminal") {
             var development = ServerProfile(); development.id = "preview-dev"; development.name = "开发服务器"
-            var nas = ServerProfile(); nas.id = "preview-nas"; nas.name = "NAS 工作空间"
-            savedServers = [development, nas]; profile = development
+            development.host = "192.0.2.10"; development.username = "dev"
+            var mac = ServerProfile(); mac.id = "preview-mac"; mac.name = "Mac mini"; mac.host = "192.0.2.20"; mac.username = "dev"
+            var nas = ServerProfile(); nas.id = "preview-nas"; nas.name = "NAS"; nas.host = "192.0.2.30"; nas.username = "admin"
+            savedServers = [development, mac, nas]; profile = development
+            if ProcessInfo.processInfo.arguments.contains("--preview-empty-home") { savedServers = [] }
             return
         }
         #endif
@@ -234,10 +237,27 @@ final class ConnectionModel: ObservableObject, TerminalConnection {
             try? await client.close()
         }
         defer { watchdog.cancel() }
-        let output = try await client.executeCommand("bash -lc " + RemoteShell.quote(command), maxResponseSize: limit)
+        var output = Data()
+        var stderr = Data()
+        do {
+            let stream = try await client.executeCommandStream("bash -lc " + RemoteShell.quote(command))
+            for try await chunk in stream {
+                switch chunk {
+                case .stdout(let buffer):
+                    guard output.count + buffer.readableBytes <= limit else { throw CitadelError.commandOutputTooLarge }
+                    output.append(contentsOf: buffer.readableBytesView)
+                case .stderr(let buffer):
+                    stderr.append(contentsOf: buffer.readableBytesView)
+                    if stderr.count > 4096 { stderr = Data(stderr.suffix(4096)) }
+                }
+            }
+        } catch let failure as SSHClient.CommandFailed {
+            let detail = String(decoding: stderr, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            throw ConnectionError.message("服务器命令执行失败（退出码 \(failure.exitCode)）" + (detail.isEmpty ? "。" : "：\n" + detail))
+        }
         try Task.checkCancellation()
         guard generation == connectionGeneration else { throw ConnectionError.message("服务器连接已切换，请在当前服务器重新操作。") }
-        return String(decoding: output.readableBytesView, as: UTF8.self)
+        return String(decoding: output, as: UTF8.self)
     }
 
     func uploadAttachment(_ data: Data, to path: String,

@@ -17,6 +17,17 @@ struct RootView: View {
                     .interactiveDismissDisabled(!connection.isConnected)
             }
             .task { await connection.maintainConnection() }
+            .task {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--preview-landscape") {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                        scene.windows.first?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                        scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight))
+                    }
+                }
+                #endif
+            }
             .onChange(of: scenePhase, initial: true) { _, phase in
                 connection.foregroundChanged(phase == .active, workspaceVisible: !showConnections)
             }
@@ -32,10 +43,16 @@ struct RootView: View {
 struct WorkspaceView: View {
     @Environment(\.interfaceTheme) private var theme
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var visibleConversationID: String?
     let isWorkspaceVisible: Bool
     @ObservedObject var connection: ConnectionModel
     @StateObject private var model: WorkspaceModel
+    @State private var showAgents = ProcessInfo.processInfo.arguments.contains("--preview-agents")
+    @State private var showAgentPicker = ProcessInfo.processInfo.arguments.contains("--preview-agent-picker")
+    @State private var showSearch = false
+    @State private var projectTerminal = false
+    @State private var addingProject = false
     @State private var showProjects = false
     @State private var clearPendingCreate = false
     @State private var restartBackend = false
@@ -77,15 +94,18 @@ struct WorkspaceView: View {
         NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
             List {
                 Section {
-                    Button { showProjects = true } label: {
-                        Label("新建聊天", systemImage: "square.and.pencil")
-                    }.keyboardShortcut("n", modifiers: .command).tint(theme.isCompanion ? theme.accent : .primary).disabled(model.isBusy || !model.isPrepared)
-                    Button { showCollaboration = true } label: {
-                        Label("多 Agent 协作", systemImage: "person.3")
-                    }.tint(.primary).disabled(!model.isPrepared)
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                        TextField("搜索聊天", text: $model.search).textInputAutocapitalization(.never).focused($searchFocused)
+                    Button { showAgents = false; preferredColumn = .detail } label: {
+                        Label("会话", systemImage: "bubble.left")
+                    }.listRowBackground(RoundedRectangle(cornerRadius: 8).fill(!showAgents ? theme.selection : .clear))
+                    Button { showAgents = true; preferredColumn = .detail } label: {
+                        Label("Agents", systemImage: "chevron.left.forwardslash.chevron.right")
+                    }.listRowBackground(RoundedRectangle(cornerRadius: 8).fill(showAgents ? theme.selection : .clear))
+                        .accessibilityIdentifier("workspace.agents")
+                    Button { showCollaboration = true } label: { Label("协作", systemImage: "person.2") }
+                }.tint(.primary)
+                if showSearch || !model.search.isEmpty {
+                    Section {
+                        TextField("搜索会话", text: $model.search).textInputAutocapitalization(.never).focused($searchFocused)
                     }
                 }
                 Section {
@@ -94,21 +114,24 @@ struct WorkspaceView: View {
                             if $0 { expandedProjects.insert(project.id) } else { expandedProjects.remove(project.id) }
                         })) {
                             ForEach(model.sessions(in: project)) { session in
-                                Button { Task { await model.select(session.id) } } label: {
+                                Button { showAgents = false; Task { await model.select(session.id) } } label: {
                                     HStack(spacing: 8) {
                                         if ["inProgress", "starting", "waiting"].contains(session.status) {
                                             Circle().fill(session.status == "waiting" ? Color.orange : Color.green).frame(width: 6, height: 6)
                                         }
                                         if session.pinned == true { Image(systemName: "pin.fill").font(.caption2).foregroundStyle(.secondary) }
-                                        Text(session.title).lineLimit(1).font(.subheadline)
-                                            .fontWeight(model.isUnread(session.id) ? .semibold : .regular)
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(session.title).lineLimit(1).font(.subheadline)
+                                                .fontWeight(model.isUnread(session.id) ? .semibold : .regular)
+
+                                        }
                                         Spacer(minLength: 0)
                                         if model.isUnread(session.id) {
                                             Circle().fill(theme.accent).frame(width: 8, height: 8)
                                                 .accessibilityLabel("回答完成，未读")
                                         }
                                     }.padding(.vertical, 4).padding(.horizontal, 6)
-                                        .background(session.id == model.selectedID ? theme.selection : .clear,
+                                        .background(session.id == model.selectedID && !showAgents ? theme.selection : .clear,
                                                     in: RoundedRectangle(cornerRadius: 8))
                                         .contentShape(Rectangle())
                                 }.buttonStyle(.plain).disabled(!model.isPrepared || model.isBusy || model.isPreparingAttachment)
@@ -125,7 +148,7 @@ struct WorkspaceView: View {
                                 }
                             }
                         }.contextMenu {
-                            Button("新建聊天", systemImage: "square.and.pencil") { Task { _ = await model.create(cwd: project.id) } }
+                            Button("新建会话", systemImage: "square.and.pencil") { Task { await model.browse(project.id); addingProject = false; showProjects = true } }
                                 .disabled(!model.isPrepared || model.isBusy)
                             Text(project.id)
                         }
@@ -134,18 +157,24 @@ struct WorkspaceView: View {
                     HStack {
                         Text("项目")
                         Spacer()
-                        Button { showProjects = true } label: { Image(systemName: "plus") }
+                        Button { addingProject = true; showProjects = true } label: { Image(systemName: "plus") }
                             .accessibilityLabel("添加项目").disabled(!model.isPrepared || model.isBusy)
                     }
                 }
             }.listStyle(.sidebar)
+                .toolbar(.hidden, for: .navigationBar)
+                .toolbar(removing: .sidebarToggle)
                 .scrollContentBackground(theme.isCompanion ? .hidden : .visible)
                 .background(theme.sidebar.ignoresSafeArea())
-                .navigationTitle("")
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        Text("Code Pax").font(.headline)
-                    }
+                .safeAreaInset(edge: .top) {
+                    HStack {
+                        Text("Code Pax").font(.title3.weight(.semibold))
+                        Spacer()
+                        Button { addingProject = false; showProjects = true } label: {
+                            Image(systemName: "plus").frame(width: 36, height: 36)
+                        }.accessibilityLabel("新建会话").keyboardShortcut("n", modifiers: .command)
+                            .disabled(model.isBusy || !model.isPrepared)
+                    }.tint(.primary).padding(.horizontal, 20).padding(.vertical, 14)
                 }
                 .safeAreaInset(edge: .bottom) {
                     HStack(spacing: 10) {
@@ -156,18 +185,33 @@ struct WorkspaceView: View {
                                 Spacer(minLength: 0)
                             }.contentShape(Rectangle())
                         }.buttonStyle(.plain)
-                        Button { showSettings = true } label: {
-                            Image(systemName: "slider.horizontal.3").frame(width: 30, height: 32)
-                        }.tint(.primary).accessibilityLabel("工作区设置")
+                        Menu {
+                            Button("服务器终端", systemImage: "terminal") { showTerminal = true }
+                                .disabled(!connection.isConnected)
+                            Button("用量与额度", systemImage: "chart.pie") { showUsage = true }
+                            Button("已归档会话", systemImage: "archivebox") { showArchived = true }
+                            Button("搜索会话", systemImage: "magnifyingglass") { showSearch = true; searchFocused = true }
+                            Divider()
+                            Button("设置", systemImage: "gearshape") { showSettings = true }
+                        } label: {
+                            Image(systemName: "gearshape").frame(width: 36, height: 36)
+                                .overlay(alignment: .topTrailing) {
+                                    if let severity = model.accountUsage?.severity, severity != .normal {
+                                        Circle().fill(usageIconColor).frame(width: 6, height: 6)
+                                    }
+                                }
+                        }.tint(.primary).accessibilityLabel("工具与设置")
                     }.padding(.horizontal, 20).padding(.vertical, 10).background(theme.chrome)
                 }
-                .navigationSplitViewColumnWidth(min: 250, ideal: 280, max: 340)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 300)
         } detail: {
             VStack(spacing: 0) {
+                workspaceHeader
+                Divider()
                 if !connection.isConnected {
                     HStack(spacing: 8) {
                         if connection.willReconnect { ProgressView().controlSize(.small) }
-                        Text(connection.status).font(.caption).foregroundStyle(.secondary)
+                        AppText(connection.status).font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         if connection.willReconnect {
                             Button("取消重连") { Task { await connection.disconnect() } }.font(.caption)
@@ -175,72 +219,37 @@ struct WorkspaceView: View {
                     }.padding(.horizontal, 18).padding(.vertical, 8).background(theme.chrome)
                 }
                 if let error = model.error {
-                    Text(error).font(.callout).foregroundStyle(.red)
+                    AppText(error).font(.callout).foregroundStyle(.red)
                         .textSelection(.enabled).padding().frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color.red.opacity(0.06))
                 }
-                if let session = model.selected {
+                if projectTerminal && !showAgents {
+                    RemoteTerminalScreen(model: connection.terminal, connection: connection,
+                        workingDirectory: model.selected?.cwd, embedded: true)
+                } else if showAgents {
+                    AgentLibraryView(model: model, openTerminal: { showTerminal = true }, startSession: { addingProject = false; showProjects = true })
+                } else if let session = model.selected {
                     conversation(session).id(session.id)
                         .onAppear { visibleConversationID = session.id }
                         .onDisappear { if visibleConversationID == session.id { visibleConversationID = nil } }
                 } else {
                     ContentUnavailableView("开始一个项目会话", systemImage: "bubble.left.and.bubble.right",
-                        description: Text(connection.isConnected ? "连接后自动读取服务器历史。在侧栏选择已有对话，或添加项目新建会话。" : "先在“连接”页面登录服务器。"))
+                        description: Text(LocalizedStringKey(connection.isConnected ? "连接后自动读取服务器历史。在侧栏选择已有对话，或添加项目新建会话。" : "先在“连接”页面登录服务器。")))
                 }
             }
             .background(theme.canvas.ignoresSafeArea())
-            .navigationTitle(model.selected?.title ?? "工作区")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showTerminal = true } label: { Image(systemName: "terminal") }
-                        .accessibilityLabel("打开终端").keyboardShortcut("t", modifiers: [.command, .shift])
-                        .disabled(!connection.isConnected)
-                }
-                if !model.unreadSessions.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            ForEach(model.unreadSessions) { session in
-                                Button(session.title) { Task { await model.select(session.id) } }
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "bubble.left.fill")
-                                Text("\(model.unreadSessions.count)")
-                            }.font(.subheadline.bold())
-                        }.tint(.blue).accessibilityLabel("\(model.unreadSessions.count) 个已完成的未读对话")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button("刷新会话", systemImage: "arrow.clockwise") { Task { await model.reloadCurrent() } }
-                            .disabled(!model.isPrepared)
-                        if model.hasUncertainSend, let pendingSession = model.pendingSessionID {
-                            Button("查看待确认消息所在会话", systemImage: "exclamationmark.bubble") {
-                                Task { await model.select(pendingSession) }
-                            }.disabled(model.isBusy)
-                        }
-                        if let selected = model.selected {
-                            if !selected.isTerminal {
-                                Button("会话历史", systemImage: "clock") { historySession = selected }
-                            }
-                            Text(selected.cwd)
-                        }
-                        if let session = model.sessions.first(where: { $0.id == model.selectedID }) {
-                            sessionActions(session)
-                            Divider()
-                        }
-                        Button("已归档聊天", systemImage: "archivebox") { showArchived = true }
-                        Button("设置", systemImage: "slider.horizontal.3") { showSettings = true }
-                        Button("Usage", systemImage: "chart.pie") { showUsage = true }
-                    } label: { Image(systemName: "ellipsis") }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
         }
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(removing: .sidebarToggle)
+        .navigationSplitViewStyle(.balanced)
+        .onChange(of: model.selectedID) { _, _ in projectTerminal = false }
+        .onChange(of: showAgents) { _, _ in projectTerminal = false }
         .onChange(of: readingSessionID, initial: true) { _, id in model.setReadingSession(id) }
         .onDisappear { model.setReadingSession(nil) }
         .background {
-            Button("搜索聊天") { columnVisibility = .all; preferredColumn = .sidebar; searchFocused = true }.keyboardShortcut("k", modifiers: .command).hidden()
+            Button("打开项目终端") { showTerminal = true }.keyboardShortcut("t", modifiers: [.command, .shift]).hidden()
+            Button("搜索聊天") { showSearch = true; showAgents = false; columnVisibility = .all; preferredColumn = .sidebar; searchFocused = true }.keyboardShortcut("k", modifiers: .command).hidden()
         }
         .alert("重命名聊天", isPresented: $showRename) {
             TextField("聊天名称", text: $renameTitle)
@@ -249,10 +258,14 @@ struct WorkspaceView: View {
                 .disabled(!model.isPrepared || model.isBusy || renameTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .sheet(isPresented: $showArchived) { ArchivedChatsView(model: model).appAppearance() }
-        .sheet(isPresented: $showProjects) { ProjectPicker(model: model).appAppearance() }
+        .sheet(isPresented: $showProjects) {
+            ProjectPicker(model: model, addingProject: addingProject, manageAgents: { showProjects = false; showAgents = true },
+                          didCreate: { showAgents = false }).appAppearance()
+        }
         .sheet(isPresented: $showCollaboration) {
             CollaborationView(workspace: model) { identifier in
                 showCollaboration = false
+                showAgents = false
                 Task { await model.select(identifier) }
             }.id(connection.profile.credentialAccount).appAppearance()
         }
@@ -304,60 +317,166 @@ struct WorkspaceView: View {
     }
 
     private var readingSessionID: String? {
-        guard scenePhase == .active, isWorkspaceVisible, !showProjects, !showSettings,
+        guard scenePhase == .active, isWorkspaceVisible, !showAgents, !showAgentPicker, !projectTerminal, !showTerminal, !showProjects, !showSettings,
               !showUsage, !showArchived, !showRename, !showCollaboration, historySession == nil else { return nil }
         return visibleConversationID
     }
 
     private var workspaceSettings: some View {
         NavigationStack {
-            Form {
-                Section("外观") {
-                    SkinPicker()
-                    PalettePicker()
-                    AppearancePicker()
-                    NavigationLink { AppearanceCustomizationView() } label: { Label("配色与自定义头像", systemImage: "paintpalette") }
-                    Text("两套皮肤都支持浅色、深色和跟随系统。").font(.caption).foregroundStyle(.secondary)
+            List {
+                Section("连接") {
+                    LabeledContent("当前服务器", value: connection.profile.displayName)
+                    Button("管理服务器连接", systemImage: "server.rack") { showSettings = false; onOpenConnections() }
                 }
-                Section("服务器") {
-                    Label(connection.profile.displayName, systemImage: "server.rack")
-                    Text(model.status).font(.caption).foregroundStyle(.secondary)
-                    Button("管理连接") { showSettings = false; onOpenConnections() }
+                Section("偏好设置") {
+                    NavigationLink {
+                        Form {
+                            Section("语言与外观") { LanguagePicker(); SkinPicker(); PalettePicker(); AppearancePicker() }
+                            Section("个性化") {
+                                NavigationLink { AppearanceCustomizationView() } label: { Label("配色与自定义头像", systemImage: "paintpalette") }
+                            }
+                        }.navigationTitle("外观与个性化")
+                    } label: { Label("外观与个性化", systemImage: "paintpalette") }
+                    Button("Agents 与启动配置", systemImage: "square.stack.3d.up") { showSettings = false; showAgents = true }
+                }
+                Section("服务器维护") {
+                    NavigationLink {
+                        Form {
+                            Section("后台状态") {
+                                AppText(model.status).font(.callout).foregroundStyle(.secondary)
+                                Button("重新准备 / 应用更新") { Task { await model.prepare() } }
+                                    .disabled(!connection.isConnected || model.isBusy)
+                            }
+                            Section("网络代理") {
+                                TextField("HTTP 代理（可选）", text: $model.proxyURL)
+                                    .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+                                    .disabled(model.isBusy)
+                                Button("重启后台并应用代理") { showSettings = false; restartBackend = true }
+                                    .disabled(!connection.isConnected || model.isBusy)
+                            }
+                        }.navigationTitle("网络与后台")
+                    } label: { Label("网络与后台", systemImage: "network") }
+                    NavigationLink {
+                        Form {
+                            Section("Codex 数据") {
+                                Button("同步服务器历史") { Task { await model.syncHistory(reset: true) } }
+                                    .disabled(!model.supportsCatalog || model.isBusy)
+                                Button("刷新模型列表") { Task { await model.loadModels() } }
+                                    .disabled(!model.supportsCatalog || model.isBusy)
+                                if !model.catalogStatus.isEmpty { AppText(model.catalogStatus).font(.caption).foregroundStyle(.secondary) }
+                            }
+                        }.navigationTitle("历史与模型")
+                    } label: { Label("历史与模型", systemImage: "clock.arrow.circlepath") }
                 }
                 if model.hasUncertainCreate {
-                    Section("待确认的新建会话") {
-                        Text("请先重试原请求，避免重复启动 CLI。")
+                    Section("待确认操作") {
+                        Text("有一次新建会话的结果待确认，请先检查服务器会话。")
                         Button("重试原新建请求") { Task { await model.retryCreate() } }.disabled(model.isBusy)
-                        Button("清除待确认的新建记录") { showSettings = false; clearPendingCreate = true }
+                        Button("清除本机记录") { showSettings = false; clearPendingCreate = true }
                     }
-                }
-                Section("工作区") {
-                    Button("同步历史") { Task { await model.syncHistory(reset: true) } }
-                        .disabled(!model.supportsCatalog || model.isBusy)
-                    Button("刷新模型列表") { Task { await model.loadModels() } }
-                        .disabled(!model.supportsCatalog || model.isBusy)
-                    Button("重新准备 / 应用更新") { Task { await model.prepare() } }
-                        .disabled(!connection.isConnected || model.isBusy)
-                }
-                Section("网络与后台") {
-                    TextField("HTTP 代理（可选）", text: $model.proxyURL)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
-                        .disabled(model.isBusy)
-                    Button("重启后台并应用代理") { showSettings = false; restartBackend = true }
-                        .disabled(!connection.isConnected || model.isBusy)
                 }
             }.navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { showSettings = false } } }
-        }.appAppearance().presentationDetents([.medium, .large])
+        }.appAppearance().presentationDetents([.large])
+    }
+
+    private var workspaceHeader: some View {
+        HStack(spacing: 12) {
+            Button { columnVisibility = columnVisibility == .all ? .detailOnly : .all; preferredColumn = .sidebar } label: {
+                Image(systemName: "sidebar.left")
+            }.accessibilityLabel("显示或隐藏侧栏")
+            if showAgents {
+                Text("Agents").font(.subheadline.weight(.medium))
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        if let cwd = model.selected?.cwd { Text(URL(fileURLWithPath: cwd).lastPathComponent).foregroundStyle(.secondary); Text("/").foregroundStyle(.tertiary) }
+                        Text(model.selected?.title ?? L10n.text("工作区")).lineLimit(1)
+                    }
+                    Text(model.selected?.title ?? L10n.text("工作区")).lineLimit(1)
+                }.font(.subheadline)
+            }
+            Spacer(minLength: 8)
+            if !showAgents {
+                Button { showAgentPicker.toggle() } label: {
+                    HStack(spacing: 5) {
+                        AppText(model.selected?.agentTitle ?? cliAgentTitle(model.newAgent))
+                        Image(systemName: "chevron.down").font(.caption2)
+                    }.font(.subheadline).padding(.horizontal, 10).padding(.vertical, 7)
+                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+                }.accessibilityLabel("选择 Agent 新建会话")
+                    .popover(isPresented: $showAgentPicker, arrowEdge: .top) { agentPicker }
+                HStack(spacing: 2) {
+                    Button("聊天") {
+                        projectTerminal = false
+                        if model.selected?.isTerminal == true {
+                            let agent = model.selected?.agent ?? "codex"
+                            model.chooseAgent(agent)
+                            addingProject = false; showProjects = true
+                        }
+                    }.padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(!projectTerminal && model.selected?.isTerminal != true ? theme.selection : .clear, in: RoundedRectangle(cornerRadius: 6))
+                        .disabled(model.selected?.isTerminal == true && !AgentSessionSelection.hasChat(model.selected?.agent ?? "codex"))
+                    Button("终端") { projectTerminal = true }
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(projectTerminal || model.selected?.isTerminal == true ? theme.selection : .clear, in: RoundedRectangle(cornerRadius: 6))
+                        .disabled(!connection.isConnected).accessibilityLabel("打开项目终端")
+                }.font(.subheadline)
+                Menu {
+                    Button("刷新会话", systemImage: "arrow.clockwise") { Task { await model.reloadCurrent() } }.disabled(!model.isPrepared)
+                    if let session = model.selected, !session.isTerminal {
+                        Button("会话历史", systemImage: "clock") { historySession = session }
+                    }
+                    if model.hasUncertainSend, let pending = model.pendingSessionID {
+                        Button("查看待确认消息") { Task { await model.select(pending) } }
+                    }
+                    if let session = model.sessions.first(where: { $0.id == model.selectedID }) { sessionActions(session) }
+                    if !model.unreadSessions.isEmpty {
+                        Section("未读回复") {
+                            ForEach(model.unreadSessions) { session in
+                                Button(session.title) { Task { await model.select(session.id) } }
+                            }
+                        }
+                    }
+                } label: { Image(systemName: "ellipsis").frame(width: 24, height: 32) }.accessibilityLabel("会话操作")
+            }
+        }.tint(.primary).buttonStyle(.plain).padding(.horizontal, 22).frame(minHeight: 64)
+            .background(theme.canvas)
+    }
+
+    private var agentPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("选择 Agent").font(.headline).padding(.horizontal, 12).padding(.vertical, 8)
+            ForEach(["codex", "claude", "gemini", "opencode", "copilot", "custom"], id: \.self) { agent in
+                Button {
+                    model.chooseAgent(agent); showAgentPicker = false
+                    addingProject = false; showProjects = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "chevron.left.forwardslash.chevron.right").frame(width: 20)
+                        AppText(cliAgentTitle(agent))
+                        Spacer()
+                        if agent == (model.selected?.agent ?? "codex") { Image(systemName: "checkmark").foregroundStyle(theme.accent) }
+                    }.padding(.horizontal, 12).padding(.vertical, 8).contentShape(Rectangle())
+                        .background(agent == (model.selected?.agent ?? "codex") ? theme.selection : .clear,
+                                    in: RoundedRectangle(cornerRadius: 8))
+                }.buttonStyle(.plain)
+            }
+            Divider().padding(.vertical, 6)
+            Button("管理 Agents →") { showAgentPicker = false; showAgents = true }.padding(12).tint(theme.accent)
+            Text("为新会话选择工具")
+                .font(.caption2).foregroundStyle(.secondary).padding(.horizontal, 12).padding(.bottom, 8)
+        }.font(.subheadline).padding(10).frame(width: 260).presentationCompactAdaptation(.popover).appAppearance()
     }
 
     private func conversation(_ session: CodexSession) -> some View {
-        let messages = theme.isCompanion ? CompanionReplyPolicy.displayedMessages(model.messages(for: session), state: companionState) : model.messages(for: session)
+        let messages = theme.isCompanion || session.agent == "claude" ? CompanionReplyPolicy.displayedMessages(model.messages(for: session), state: companionState) : model.messages(for: session)
         let latestReplyID = CompanionReplyPolicy.latestReplyID(in: messages)
         return VStack(spacing: 0) {
             if session.isTerminal {
                 HStack {
-                    Text(session.agentTitle + " · " + sessionStatus(session.status))
+                    AppText(session.agentTitle + " · " + sessionStatus(session.status))
                     Spacer()
                     if session.isRunning {
                         Button("结束 CLI", role: .destructive) { Task { await model.stop() } }
@@ -365,14 +484,14 @@ struct WorkspaceView: View {
                     }
                 }.padding()
                 if let error = session.error {
-                    Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(8)
+                    AppText(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(8)
                 }
                 TerminalSessionView(connection: connection, sessionID: session.id)
                     .id(connection.profile.credentialAccount + "|" + session.id)
             } else {
                 if session.readOnly == true {
                     HStack {
-                        Label(session.writerOccupied == true ? "此会话被其他 Codex 客户端占用。请退出另一端会话后重新检查。" : "此会话正在其他客户端运行，目前仅供查看。", systemImage: "lock.fill")
+                        Label(LocalizedStringKey(session.writerOccupied == true ? "此会话被其他 Codex 客户端占用。请退出另一端会话后重新检查。" : "此会话正在其他客户端运行，目前仅供查看。"), systemImage: "lock.fill")
                             .font(.caption).foregroundStyle(.orange)
                         Spacer()
                         Button("重新检查") { Task { await model.reloadCurrent() } }.disabled(model.isBusy)
@@ -389,7 +508,7 @@ struct WorkspaceView: View {
                                 avatarState: entry.replyMessages.contains(where: { $0.id == latestReplyID }) ? companionState : nil)
                         }
                         if let error = session.error, !error.isEmpty {
-                            Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red).textSelection(.enabled)
+                            AppLabel(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red).textSelection(.enabled)
                         }
                         ForEach(session.approvals) { approval in
                             ApprovalCard(approval: approval, disabled: model.isBusy || !model.isPrepared) { decision, answers in
@@ -405,17 +524,13 @@ struct WorkspaceView: View {
                             }
                                 .padding().background(Color.indigo.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
                         }
-                        if session.status == "completed", !model.hasUncertainSend, !model.isSending {
-                            Label("回答完成", systemImage: "checkmark.circle.fill")
-                                .font(.caption.weight(.medium)).foregroundStyle(.green).padding(.top, 4)
-                        }
                         if model.messages(for: session).isEmpty {
-                            Text("在下面输入任务，Codex 会直接在这个项目中工作。")
+                            if session.agent == "claude" { ClaudeAvatar(animated: true).frame(width: 64, height: 56) }
+                            Text("在下面输入任务，\(session.agentTitle) 会直接在这个项目中工作。")
                                 .foregroundStyle(.secondary).padding(.vertical)
                         }
-                    }.padding(20).frame(maxWidth: 1000, alignment: .leading).frame(maxWidth: .infinity)
+                    }.padding(.horizontal, 30).padding(.vertical, 28).frame(maxWidth: 820, alignment: .leading).frame(maxWidth: .infinity)
                 }.defaultScrollAnchor(.bottom)
-                Divider()
                 if session.collaborationRunId != nil {
                     HStack {
                         Text("协作成员由后台调度。可在协作面板留言、停止或重试；审批仍在上方处理。")
@@ -429,51 +544,33 @@ struct WorkspaceView: View {
 
     private func composer(_ session: CodexSession) -> some View {
         let control = ComposerState.resolve(status: session.status, draft: model.draft.isEmpty && !model.attachments.isEmpty ? "附件" : model.draft, sending: model.isSending, pending: model.hasUncertainSend)
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 8) {
             AttachmentTray(model: model)
-            HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .bottom, spacing: 10) {
+                AttachmentPickerButton(model: model)
                 ComposerTextInput(text: $model.draft, canSubmit: model.canSubmit, canAttach: model.canAddAttachments, receiveAttachments: { model.attachProviders($0) }) {
                     Task { await model.send() }
-                }
-                    .overlay(alignment: .topLeading) {
-                        if model.draft.isEmpty {
-                            Text("给 Codex 一个任务…").foregroundStyle(.tertiary)
-                                .allowsHitTesting(false)
-                        }
-                    }.padding(12)
-                    .background(theme.input, in: RoundedRectangle(cornerRadius: 14))
-            }
-            if model.isBusy && !model.isSending {
-                ProgressView("正在处理请求…").font(.caption)
-            }
-            HStack(spacing: 10) {
-                AttachmentPickerButton(model: model)
-                modelControls
-                Spacer(minLength: 0)
-                if control == .completed {
-                    HStack(spacing: 6) {
-                        Text("已完成").font(.caption.weight(.medium))
-                        Image(systemName: "checkmark").fontWeight(.semibold).frame(width: 44, height: 44)
-                            .background(Color.green.opacity(0.14), in: Circle())
-                    }.foregroundStyle(.green).accessibilityLabel("回答已完成，输入新消息即可继续")
-                } else {
-                    ComposerActionButton(state: control,
-                        disabled: session.isRunning ? (!connection.isConnected || !model.isPrepared || model.isBusy) : !model.canSubmit) {
-                        Task { if control == .running { await model.stop() } else { await model.send() } }
+                }.overlay(alignment: .topLeading) {
+                    if model.draft.isEmpty {
+                        Text("描述任务…").foregroundStyle(.tertiary).padding(.top, 6).allowsHitTesting(false)
                     }
+                }.frame(minWidth: 60).layoutPriority(1)
+                modelControls.fixedSize(horizontal: true, vertical: false).padding(.bottom, 10)
+                ComposerActionButton(state: control,
+                    disabled: session.isRunning ? (!connection.isConnected || !model.isPrepared || model.isBusy) : !model.canSubmit) {
+                    Task { if control == .running { await model.stop() } else { await model.send() } }
                 }
             }
-            if session.accessMode != model.accessMode.rawValue {
-                Text("下次任务使用：" + model.accessMode.title).font(.caption2).foregroundStyle(.secondary)
-            }
-        }.padding(14)
-            .background(theme.card, in: RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(isDropTargeted ? theme.accent : theme.border, lineWidth: isDropTargeted ? 2 : 1))
+            if model.isBusy && !model.isSending { ProgressView("正在处理请求…").font(.caption) }
+        }.padding(.horizontal, 14).padding(.vertical, 10)
+            .background(theme.canvas, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(isDropTargeted ? theme.accent : theme.border, lineWidth: isDropTargeted ? 2 : 1))
             .onDrop(of: [.fileURL, .image], isTargeted: $isDropTargeted) { providers in
                 guard model.canAddAttachments else { return false }
                 model.attachProviders(providers); return true
             }
-            .padding(.horizontal, 18).padding(.vertical, 10)
+            .frame(maxWidth: 960).padding(.horizontal, 24).padding(.bottom, 16).padding(.top, 8)
+            .frame(maxWidth: .infinity)
             .animation(.easeInOut(duration: 0.2), value: control)
     }
 
@@ -484,45 +581,40 @@ struct WorkspaceView: View {
                     model.selectedModel = $0; model.modelChanged()
                 })) {
                     Text("沿用会话 / 默认模型").tag("")
-                    if !model.selectedModel.isEmpty && !model.models.contains(where: { $0.model == model.selectedModel }) {
+                    if !model.selectedModel.isEmpty && !model.chatModels.contains(where: { $0.model == model.selectedModel }) {
                         Text(model.selectedModel).tag(model.selectedModel)
                     }
-                    ForEach(model.models) { Text($0.displayName).tag($0.model) }
+                    ForEach(model.chatModels) { Text($0.displayName).tag($0.model) }
                 }
-                if let chosen = model.chosenModel {
+                if let chosen = model.chosenModel, !chosen.supportedReasoningEfforts.isEmpty {
                     Picker("推理强度", selection: $model.selectedEffort) {
                         Text("默认推理强度").tag("")
-                        ForEach(chosen.supportedReasoningEfforts) { Text($0.reasoningEffort).tag($0.reasoningEffort) }
+                        ForEach(chosen.supportedReasoningEfforts) { AppText(model.isClaudeChat ? $0.title : $0.reasoningEffort).tag($0.reasoningEffort) }
                     }
                 }
-                Button("刷新模型") { Task { await model.loadModels() } }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(model.chosenModel?.displayName ?? (model.selectedModel.isEmpty ? "默认模型" : model.selectedModel))
-                        .lineLimit(1)
-                    if !model.selectedEffort.isEmpty { Text(model.selectedEffort).foregroundStyle(.secondary) }
-                    Image(systemName: "chevron.down").font(.caption2)
-                }
-            }.disabled(!model.supportsCatalog || model.isBusy)
-            Menu {
+                Divider()
                 Picker("下次任务的权限", selection: Binding(get: { model.accessMode }, set: {
                     model.accessMode = $0; model.accessModeChanged()
                 })) {
-                    ForEach(AccessMode.allCases) { mode in Label(mode.title, systemImage: mode.symbol).tag(mode) }
+                    ForEach(AccessMode.allCases) { mode in Label(LocalizedStringKey(mode.title), systemImage: mode.symbol).tag(mode) }
+                }.disabled(!model.supportsAccessMode)
+                if !model.isClaudeChat {
+                    Button("Codex 用量与额度", systemImage: "chart.pie") { showUsage = true }
                 }
-                Text("Full Access：允许访问服务器文件和网络，无需逐项审批。切换从下一次任务生效。")
+                Button("刷新模型与强度") { Task { await model.loadModels() } }
+                if model.isClaudeChat && !model.supportsClaudeModels {
+                    Button("更新聊天后台") { Task { await model.prepare() } }
+                }
             } label: {
-                ViewThatFits(in: .horizontal) {
-                    Label(model.accessMode.title, systemImage: model.accessMode.symbol).fixedSize()
-                    Image(systemName: model.accessMode.symbol)
-                }.accessibilityLabel(model.accessMode.title)
-            }.disabled(model.isBusy || !model.supportsAccessMode)
-            Button { showUsage = true } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "chart.pie").foregroundStyle(usageIconColor)
-                    Text("Usage")
-                }.lineLimit(1)
-            }.accessibilityLabel("查看 token 用量与账号额度")
+                    if sizeClass == .regular {
+                        AppText((model.chosenModel?.displayName ?? (model.selectedModel.isEmpty ? "默认模型" : model.selectedModel)) +
+                             (model.isClaudeChat && !model.selectedEffort.isEmpty ? " · " + model.selectedEffort : ""))
+                            .lineLimit(1).frame(maxWidth: 130)
+                    } else { Image(systemName: "slider.horizontal.3") }
+                    Image(systemName: "chevron.down").font(.caption2)
+                }
+            }.disabled(!(model.supportsCatalog || model.isClaudeChat) || model.isBusy)
         }.font(.caption).tint(.primary)
     }
 
@@ -537,58 +629,43 @@ struct WorkspaceView: View {
 
 }
 
-private struct CLISessionPicker: View {
-    @ObservedObject var model: WorkspaceModel
-
-    var body: some View {
-        Picker("CLI", selection: $model.newAgent) {
-            ForEach(model.agents) { agent in
-                Text(agent.title + (agent.available ? "" : "（未安装）")).tag(agent.id)
-                    .disabled(!agent.available)
-            }
-            Text("自定义 CLI").tag("custom")
-        }
-        .onChange(of: model.newAgent) { _, agent in
-            model.newSessionMode = agent == "codex" && model.codexReady ? "chat" : "terminal"
-        }
-        if model.newAgent == "codex" {
-            Picker("模式", selection: $model.newSessionMode) {
-                Text("聊天").tag("chat").disabled(!model.codexReady)
-                Text("终端").tag("terminal")
-            }.pickerStyle(.segmented)
-        }
-        if model.newAgent == "custom" {
-            TextField("命令，例如 aider --model …", text: $model.customCommand, axis: .vertical)
-                .textInputAutocapitalization(.never).autocorrectionDisabled()
-            Text("命令在服务器项目目录中运行；支持带引号的参数，管道和重定向需显式使用 shell。")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-        if model.createsTerminal {
-            Text("使用交互式终端，登录、模型和审批由所选 CLI 处理。")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-    }
-}
-
 private struct ProjectPicker: View {
     @ObservedObject var model: WorkspaceModel
+    let addingProject: Bool
+    let manageAgents: () -> Void
+    let didCreate: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var manualPath = ""
 
     var body: some View {
         NavigationStack {
             List {
-                if model.supportsTerminal {
-                    Section("CLI 与会话模式") { CLISessionPicker(model: model) }
+                if !addingProject {
+                Section("1 · Agent") {
+                    HStack {
+                        AppLabel(cliAgentTitle(model.newAgent), systemImage: model.createsTerminal ? "terminal" : "bubble.left")
+                        Spacer()
+                        AppText(model.loginNextSession ? "登录终端" : model.createsTerminal ? "交互终端" : "原生聊天").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Button("更换 Agent / 编辑启动配置", action: manageAgents)
+                    if model.needsClaudeChatUpgrade {
+                        Text("当前后台不支持 Claude 聊天。更新后台后才能创建；不会改用 Codex。")
+                            .foregroundStyle(.orange)
+                        Button("更新聊天后台") { Task { await model.prepare() } }
+                            .disabled(model.isBusy || !model.connection.isConnected)
+                    }
+                }
                 }
                 if let listing = model.listing {
-                    Section("当前目录") {
+                    Section(addingProject ? "项目目录" : "2 · 项目目录") {
                         Text(listing.path).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-                        Button("在这个目录新建会话") {
-                            Task { if await model.create(cwd: listing.path) { dismiss() } }
+                        if !addingProject {
+                        Button(L10n.text(model.loginNextSession ? "启动登录终端" : "使用 " + cliAgentTitle(model.newAgent) + " 新建会话")) {
+                            Task { if await model.create(cwd: listing.path) { didCreate(); dismiss() } }
                         }.disabled(model.isBusy || !model.canCreateSession || model.hasUncertainCreate)
-                        if model.supportsProjects {
-                            Button("仅添加这个项目") {
+                        }
+                        if addingProject && model.supportsProjects {
+                            Button("添加这个项目") {
                                 Task { if await model.addProject(cwd: listing.path) { dismiss() } }
                             }.disabled(model.isBusy)
                         }
@@ -612,9 +689,10 @@ private struct ProjectPicker: View {
                     Text("默认只允许当前 SSH 用户的 Home 目录及其子目录。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                if let error = model.error { Text(error).foregroundStyle(.red) }
+                if let error = model.error { AppText(error).foregroundStyle(.red) }
             }
-            .navigationTitle("选择项目")
+            .navigationTitle(LocalizedStringKey(addingProject ? "添加项目" : "新建会话"))
+            .onDisappear { model.loginNextSession = false }
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
         }
     }
@@ -633,7 +711,7 @@ private struct HistoryBrowser: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
-                    if let error { Text(error).foregroundStyle(.red) }
+                    if let error { AppText(error).foregroundStyle(.red) }
                     if loading { ProgressView("读取历史…") }
                     if pages.indices.contains(index) {
                         HStack {
@@ -671,6 +749,7 @@ private struct ConversationRow: View {
     @ObservedObject var model: WorkspaceModel
     let sessionID: String
     var avatarState: CompanionState? = nil
+    private var agent: String { model.sessions.first(where: { $0.id == sessionID })?.agent ?? "codex" }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if entry.isUserMessage {
@@ -678,7 +757,14 @@ private struct ConversationRow: View {
             } else {
                 if !entry.replyMessages.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        if theme.isCompanion {
+                        if agent == "claude" {
+                            HStack(spacing: 8) {
+                                ClaudeAvatar(state: avatarState ?? .idle, animated: avatarState != nil)
+                                    .frame(width: theme.isCompanion ? 64 : 38, height: theme.isCompanion ? 56 : 34)
+                                Text("Claude Code").font(.subheadline.weight(.semibold))
+                                Spacer()
+                            }
+                        } else if theme.isCompanion {
                             HStack(spacing: 8) {
                                 if let avatarState {
                                     CompanionAvatar(state: avatarState).frame(width: 72, height: 72)
@@ -686,6 +772,10 @@ private struct ConversationRow: View {
                                 Text("Codex").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                                 Spacer()
                             }
+                        }
+                        if !theme.isCompanion && agent != "claude" {
+                            Label("Codex", systemImage: "chevron.left.forwardslash.chevron.right")
+                                .font(.subheadline.weight(.semibold)).padding(.bottom, 4)
                         }
                         ForEach(entry.replyMessages) { message in messageContent(message) }
                     }
@@ -714,6 +804,7 @@ private struct ConversationRow: View {
 }
 
 private struct ActivityGroup: View {
+    @Environment(\.locale) private var locale
     let entry: ConversationEntry
     @ObservedObject var model: WorkspaceModel
     let sessionID: String
@@ -733,7 +824,10 @@ private struct ActivityGroup: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: message.kind == "commandExecution" ? "terminal" : "doc.text")
-                            Text(message.activityTitle).lineLimit(1).truncationMode(.middle)
+                            Group {
+                                if message.kind == "commandExecution" { Text(verbatim: message.activityTitle) }
+                                else { AppText(message.activityTitle) }
+                            }.lineLimit(1).truncationMode(.middle)
                             Spacer(minLength: 4)
                             if message.status == "failed" { Image(systemName: "exclamationmark.circle").foregroundStyle(.red) }
                         }.font(.caption).foregroundStyle(.secondary)
@@ -744,9 +838,10 @@ private struct ActivityGroup: View {
             HStack(spacing: 8) {
                 if entry.isRunning { ProgressView().controlSize(.mini) }
                 else { Image(systemName: entry.messages.contains(where: { $0.status == "failed" }) ? "exclamationmark.circle" : "checkmark.circle") }
-                Text(entry.summary).lineLimit(1)
+                Text(verbatim: entry.localizedSummary(locale: locale)).lineLimit(1)
             }.font(.subheadline).foregroundStyle(.secondary)
-        }.tint(.secondary).padding(.vertical, 4)
+        }.tint(.secondary).padding(12)
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.12), lineWidth: 1))
     }
 }
 
@@ -793,9 +888,11 @@ private struct MessageCard: View {
                                     ? deliveryColor.opacity(0.13) : theme.userBubble,
                                     in: RoundedRectangle(cornerRadius: 20))
                     }
-                    Label(deliveryLabel, systemImage: message.status == "sending" ? "clock" :
+                    if ["sending", "unknown", "failed"].contains(message.status) {
+                    AppLabel(deliveryLabel, systemImage: message.status == "sending" ? "clock" :
                             message.status == "unknown" || message.status == "failed" ? "exclamationmark.circle" : "checkmark")
                         .font(.caption2).foregroundStyle(deliveryColor).padding(.trailing, 8)
+                    }
                     if model.retryRequest(for: message.id) != nil {
                         HStack(spacing: 12) {
                             Button(message.status == "failed" ? "重试" : "确认并重试") {
@@ -835,7 +932,7 @@ private struct ApprovalCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(approval.isQuestion ? "Codex 需要你的回答" : "需要你的审批", systemImage: "hand.raised")
+            Label(LocalizedStringKey(approval.isQuestion ? "需要你的回答" : "需要你的审批"), systemImage: "hand.raised")
                 .font(.headline)
             if let reason = approval.params["reason"].string { Text(reason) }
             if let cwd = approval.params["cwd"].string { Text(cwd).font(.caption).foregroundStyle(.secondary) }

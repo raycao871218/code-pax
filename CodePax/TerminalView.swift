@@ -257,7 +257,7 @@ struct TerminalSessionView: View {
         VStack(spacing: 0) {
             CLIWebTerminal(model: model)
             VStack(alignment: .leading, spacing: 8) {
-                if let error = model.error { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
+                if let error = model.error { AppText(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
                 if model.hasPendingInput {
                     HStack {
                         Text("输入回执待确认").font(.caption)

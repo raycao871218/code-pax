@@ -103,11 +103,11 @@ struct DownloadedFileContent: View {
                 }.defaultScrollAnchor(.topLeading)
             } else if let content {
                 if let notice = content.notice {
-                    Text(notice).font(.caption).foregroundStyle(.secondary).padding(12)
+                    AppText(notice).font(.caption).foregroundStyle(.secondary).padding(12)
                 }
                 QuickLookFile(url: url)
             } else if let readError {
-                Text(readError).font(.caption).foregroundStyle(.secondary).padding(12)
+                AppText(readError).font(.caption).foregroundStyle(.secondary).padding(12)
                 QuickLookFile(url: url)
             } else { ProgressView("正在读取文件…").frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.background(theme.canvas)

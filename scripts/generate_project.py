@@ -64,6 +64,9 @@ bridge_build = add("BridgeResourceBuild", {"isa": "PBXBuildFile", "fileRef": bri
 terminal_backend = add("TerminalBackend", {"isa": "PBXFileReference", "lastKnownFileType": "text.script.python",
     "path": "../backend/terminal_runtime.py", "sourceTree": "<group>"})
 terminal_backend_build = add("TerminalBackendBuild", {"isa": "PBXBuildFile", "fileRef": terminal_backend})
+claude_backend = add("ClaudeBackend", {"isa": "PBXFileReference", "lastKnownFileType": "text.script.python",
+    "path": "../backend/claude_runtime.py", "sourceTree": "<group>"})
+claude_backend_build = add("ClaudeBackendBuild", {"isa": "PBXBuildFile", "fileRef": claude_backend})
 terminal_assets = add("TerminalAssets", {"isa": "PBXFileReference", "lastKnownFileType": "folder",
     "path": "Terminal", "sourceTree": "<group>"})
 terminal_assets_build = add("TerminalAssetsBuild", {"isa": "PBXBuildFile", "fileRef": terminal_assets})
@@ -73,6 +76,11 @@ collaboration_build = add("CollaborationResourceBuild", {"isa": "PBXBuildFile", 
 assets_file = add("AssetsResource", {"isa": "PBXFileReference", "lastKnownFileType": "folder.assetcatalog",
                                    "path": "Assets.xcassets", "sourceTree": "<group>"})
 assets_build = add("AssetsResourceBuild", {"isa": "PBXBuildFile", "fileRef": assets_file})
+localization_refs, localization_builds = [], []
+for name in ["Localizable.xcstrings", "InfoPlist.xcstrings"]:
+    file = add(name, {"isa": "PBXFileReference", "lastKnownFileType": "text.json.xcstrings", "path": name, "sourceTree": "<group>"})
+    localization_refs.append(file)
+    localization_builds.append(add(name + "Build", {"isa": "PBXBuildFile", "fileRef": file}))
 packages, products, framework_builds = [], [], []
 for name, url, version, product in [
     ("Citadel", "https://github.com/orlandos-nl/Citadel.git", "0.12.1", "Citadel"),
@@ -95,7 +103,7 @@ app = add("AppProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper
                          "path": "CodePax.app", "sourceTree": "BUILT_PRODUCTS_DIR"})
 tests = add("TestsProduct", {"isa": "PBXFileReference", "explicitFileType": "wrapper.cfbundle",
                              "path": "CodePaxTests.xctest", "sourceTree": "BUILT_PRODUCTS_DIR"})
-app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + [plist, bridge_file, collaboration_file, assets_file, terminal_backend, terminal_assets],
+app_group = add("AppGroup", {"isa": "PBXGroup", "children": source_refs + localization_refs + [plist, bridge_file, collaboration_file, assets_file, terminal_backend, claude_backend, terminal_assets],
                              "path": "CodePax", "sourceTree": "<group>"})
 test_group = add("TestsGroup", {"isa": "PBXGroup", "children": test_refs,
                                 "path": "CodePaxTests", "sourceTree": "<group>"})
@@ -107,6 +115,7 @@ main_group = add("MainGroup", {"isa": "PBXGroup", "children": [app_group, test_g
 project_configs = config_list("Project", {
     "SDKROOT": "iphoneos", "IPHONEOS_DEPLOYMENT_TARGET": "17.0", "SWIFT_VERSION": "5.0",
     "CLANG_ENABLE_MODULES": "YES", "CLANG_ENABLE_OBJC_ARC": "YES",
+    "SWIFT_EMIT_LOC_STRINGS": "YES",
     "SWIFT_STRICT_CONCURRENCY": "targeted", "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
 })
 app_configs = config_list("App", {
@@ -114,7 +123,7 @@ app_configs = config_list("App", {
     "INFOPLIST_FILE": "CodePax/Info.plist", "GENERATE_INFOPLIST_FILE": "NO",
     "TARGETED_DEVICE_FAMILY": "2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
     "SUPPORTS_MACCATALYST": "NO", "CODE_SIGN_STYLE": "Automatic",
-    "CURRENT_PROJECT_VERSION": "30", "MARKETING_VERSION": "0.16.0",
+    "CURRENT_PROJECT_VERSION": "46", "MARKETING_VERSION": "0.18.0",
     "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
     "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
 })
@@ -129,7 +138,7 @@ app_target = add("AppTarget", {
     "isa": "PBXNativeTarget", "buildConfigurationList": app_configs,
     "buildPhases": [phase("AppSources", "PBXSourcesBuildPhase", source_builds),
                     phase("AppFrameworks", "PBXFrameworksBuildPhase", framework_builds),
-                    phase("AppResources", "PBXResourcesBuildPhase", [bridge_build, collaboration_build, assets_build, terminal_backend_build, terminal_assets_build])],
+                    phase("AppResources", "PBXResourcesBuildPhase", [bridge_build, collaboration_build, assets_build, terminal_backend_build, claude_backend_build, terminal_assets_build] + localization_builds)],
     "buildRules": [], "dependencies": [], "name": "CodePax", "productName": "CodePax",
     "productReference": app, "productType": "com.apple.product-type.application",
     "packageProductDependencies": products,
@@ -151,7 +160,7 @@ project = add("ProjectObject", {
         "TargetAttributes": {app_target: {"CreatedOnToolsVersion": "16.0"},
                              test_target: {"CreatedOnToolsVersion": "16.0", "TestTargetID": app_target}}},
     "buildConfigurationList": project_configs, "compatibilityVersion": "Xcode 14.0",
-    "developmentRegion": "zh_CN", "hasScannedForEncodings": 0, "knownRegions": ["en", "zh_CN", "Base"],
+    "developmentRegion": "zh-Hans", "hasScannedForEncodings": 0, "knownRegions": ["en", "zh-Hans", "Base"],
     "mainGroup": main_group, "productRefGroup": product_group, "projectDirPath": "", "projectRoot": "",
     "targets": [app_target, test_target], "packageReferences": packages,
 })

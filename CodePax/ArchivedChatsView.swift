@@ -22,7 +22,7 @@ struct ArchivedChatsView: View {
                         }.buttonStyle(.bordered).disabled(model.isBusy || !model.isPrepared)
                     }
                 }
-                if let error = model.error { Text(error).foregroundStyle(.red) }
+                if let error = model.error { AppText(error).foregroundStyle(.red) }
             }
             .overlay { if model.archivedSessions.isEmpty { ContentUnavailableView("暂无归档聊天", systemImage: "archivebox") } }
             .navigationTitle("已归档聊天").navigationBarTitleDisplayMode(.inline)

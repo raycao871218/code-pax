@@ -4,6 +4,101 @@ import UIKit
 
 final class WorkspaceReliabilityTests: XCTestCase {
     @MainActor
+    func testChoosingClaudeKeepsChatIntentWhenOldServerLacksCapability() {
+        let connection = ConnectionModel()
+        let model = WorkspaceModel(connection: connection)
+        model.chooseAgent("claude")
+        XCTAssertFalse(model.supportsChat(for: "claude"))
+        XCTAssertEqual(model.newAgent, "claude")
+        XCTAssertEqual(model.newSessionMode, "chat")
+        XCTAssertFalse(model.createsTerminal)
+        XCTAssertTrue(model.needsClaudeChatUpgrade)
+        XCTAssertFalse(model.canCreateSession)
+        XCTAssertEqual(model.newSessionSelection.fields["agent"]?.string, "claude")
+        XCTAssertEqual(model.newSessionSelection.fields["mode"]?.string, "chat")
+        model.newSessionMode = "terminal"
+        XCTAssertTrue(model.createsTerminal)
+        XCTAssertEqual(model.newSessionSelection.agent, "claude")
+    }
+
+    func testPendingCodexCreationCannotMasqueradeAsClaudeChat() {
+        let claude = AgentSessionSelection(agent: "claude", mode: "chat")
+        XCTAssertFalse(claude.matches(["agent": .string("codex"), "mode": .string("chat")]))
+        XCTAssertFalse(claude.matches(["agent": .string("claude"), "mode": .string("terminal")]))
+        XCTAssertFalse(claude.matches([:]))
+        XCTAssertTrue(claude.matches(claude.fields))
+        let login = AgentSessionSelection(agent: "claude", mode: "chat", login: true)
+        XCTAssertEqual(login.agent, "claude")
+        XCTAssertEqual(login.mode, "terminal")
+        XCTAssertEqual(AgentSessionSelection(agent: "gemini", mode: "chat").mode, "terminal")
+    }
+
+    @MainActor
+    func testSwitchingFromClaudeTerminalToChatDoesNotChooseCodex() {
+        let model = WorkspaceModel(connection: ConnectionModel())
+        model.newAgent = "claude"; model.newSessionMode = "terminal"; model.loginNextSession = true
+        model.chooseAgent("claude")
+        XCTAssertEqual(model.newSessionSelection, AgentSessionSelection(agent: "claude", mode: "chat"))
+        XCTAssertFalse(model.loginNextSession)
+    }
+    func testAgentConfigurationParsesEnvironmentAndPreservesValuesAndArguments() throws {
+        let config = AgentConfiguration(executable: "/opt/my tools/claude", arguments: "--flag 'two words'",
+            model: "chosen-model", environment: "API_KEY=secret=with=equals\nBASE_URL=https://example.invalid/api\n\n",
+            loginCommand: "cli auth login")
+        let fields = try config.fields()
+        XCTAssertEqual(fields["executable"].string, "/opt/my tools/claude")
+        XCTAssertEqual(fields["arguments"].string, "--flag 'two words'")
+        XCTAssertEqual(fields["environment"]["API_KEY"].string, "secret=with=equals")
+        XCTAssertEqual(fields["loginCommand"].string, "cli auth login")
+        let restored = try JSONDecoder().decode(AgentConfiguration.self, from: JSONEncoder().encode(config))
+        XCTAssertEqual(restored, config)
+        for invalid in ["MISSING_EQUALS", "BAD NAME=value", "A=1\nA=2"] {
+            var bad = config; bad.environment = invalid
+            XCTAssertThrowsError(try bad.fields())
+        }
+    }
+
+    @MainActor
+    func testAgentPreferencesSurviveRecreationAndAreIsolatedByServer() throws {
+        let suite = "agents-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let connection = ConnectionModel()
+        connection.profile.host = "agent-server-a.invalid"
+        let model = WorkspaceModel(connection: connection, defaults: defaults)
+        model.connectionChanged()
+        model.newAgent = "custom"; model.newSessionMode = "terminal"; model.customCommand = "aider --model demo"
+        model.saveAgentPreferences()
+        let restored = WorkspaceModel(connection: connection, defaults: defaults)
+        restored.connectionChanged()
+        XCTAssertEqual(restored.newAgent, "custom")
+        XCTAssertEqual(restored.customCommand, "aider --model demo")
+        XCTAssertTrue(restored.createsTerminal)
+        connection.profile.host = "agent-server-b.invalid"
+        restored.connectionChanged()
+        XCTAssertEqual(restored.newAgent, "codex")
+        XCTAssertEqual(restored.customCommand, "")
+        connection.profile.host = "agent-server-a.invalid"
+        restored.connectionChanged()
+        XCTAssertEqual(restored.customCommand, "aider --model demo")
+    }
+
+    func testBridgeInstallationChunksLargeResourcesBeforeReplacingInstalledFiles() {
+        let installation = BridgeInstallation(resources: [
+            "bridge.py": Data(repeating: 65, count: 180_000),
+            "terminal_runtime.py": Data(repeating: 66, count: 8_000)
+        ])
+        XCTAssertGreaterThan(installation.uploads.count, 2)
+        for command in [installation.setup] + installation.uploads + [installation.finish, installation.cleanup] {
+            XCTAssertLessThan(("bash -lc " + RemoteShell.quote(command)).utf8.count, 48 * 1024)
+        }
+        XCTAssertFalse(installation.uploads.contains { $0.contains("os.replace") })
+        XCTAssertTrue(installation.finish.contains("compile("))
+        XCTAssertTrue(installation.finish.contains("os.replace"))
+        XCTAssertNotEqual(installation.setup, BridgeInstallation(resources: [:]).setup)
+    }
+
+    @MainActor
     func testMessageRetryRestoresOriginalRequestAndKeepsNewDraftSeparate() async throws {
         let connection = ConnectionModel()
         connection.profile.host = "retry-test-" + UUID().uuidString + ".invalid"

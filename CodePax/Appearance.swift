@@ -16,7 +16,7 @@ struct AppearancePicker: View {
     @AppStorage("appearance") private var appearance = AppearanceMode.system.rawValue
     var body: some View {
         Picker("外观", selection: $appearance) {
-            ForEach(AppearanceMode.allCases) { Text($0.title).tag($0.rawValue) }
+            ForEach(AppearanceMode.allCases) { Text(LocalizedStringKey($0.title)).tag($0.rawValue) }
         }
     }
 }
@@ -26,12 +26,14 @@ struct AppAppearanceModifier: ViewModifier {
     @AppStorage private var appearance: String
     @AppStorage private var skin: String
     @AppStorage private var palette: String
+    @AppStorage private var language: String
     @Environment(\.colorScheme) private var systemScheme
 
     init(store: UserDefaults = .standard) {
         _appearance = AppStorage(wrappedValue: AppearanceMode.system.rawValue, "appearance", store: store)
         _palette = AppStorage(wrappedValue: InterfacePalette.violet.rawValue, "interfacePalette", store: store)
         _skin = AppStorage(wrappedValue: InterfaceSkin.classic.rawValue, "interfaceSkin", store: store)
+        _language = AppStorage(wrappedValue: AppLanguage.system.rawValue, "appLanguage", store: store)
     }
 
     private func resolvedPreferences() -> (AppearanceMode, InterfaceSkin) {
@@ -63,7 +65,8 @@ struct AppAppearanceModifier: ViewModifier {
         let (mode, selectedSkin) = resolvedPreferences()
         let scheme = mode.colorScheme ?? systemScheme
         let theme = InterfaceTheme(skin: selectedSkin, colorScheme: scheme, palette: resolvedPalette())
-        content.environment(\.interfaceTheme, theme).tint(theme.accent).background {
+        let locale = AppLanguage.resolve(language).locale()
+        content.environment(\.locale, locale).environment(\.interfaceTheme, theme).tint(theme.accent).background {
             WindowAppearanceBridge(mode: mode)
                 .frame(width: 0, height: 0).allowsHitTesting(false)
         }

@@ -6,11 +6,17 @@ final class WorkspaceModel: ObservableObject {
     @Published private(set) var sessions: [CodexSessionSummary] = []
     @Published private(set) var projects: [CodexProject] = []
     @Published private(set) var models: [CodexModel] = []
+    @Published private(set) var claudeModels: [CodexModel] = []
+    @Published private(set) var supportsClaudeModels = false
     @Published private(set) var supportsCatalog = false
     @Published private(set) var supportsAccessMode = false
     @Published private(set) var supportsSessionManagement = false
     @Published private(set) var supportsDownloads = false
+    @Published private(set) var supportsAgentConfiguration = false
+    @Published private(set) var agentConfigurations: [String: AgentConfiguration] = [:]
+    @Published var loginNextSession = false
     @Published private(set) var supportsTerminal = false
+    @Published private(set) var supportsClaudeChat = false
     @Published private(set) var supportsProjects = false
     @Published private(set) var codexReady = false
     @Published private(set) var agents: [CLIAgent] = []
@@ -45,6 +51,7 @@ final class WorkspaceModel: ObservableObject {
     private var supportsUsage = false
     private var usageSchedule = UsageRefreshSchedule()
     private var usageRequestID: UUID?
+    private let preferenceDefaults: UserDefaults
     private let draftStore: DraftStore
     private var draftOwner: DraftAddress?
     private var draftRecord = DraftRecord()
@@ -79,12 +86,18 @@ final class WorkspaceModel: ObservableObject {
 
     init(connection: ConnectionModel, defaults: UserDefaults = .standard) {
         self.connection = connection
+        self.preferenceDefaults = defaults
         self.draftStore = DraftStore(defaults: defaults)
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--preview-workspace") {
             activeServerKey = storageKey
             isPrepared = true
             supportsCatalog = true; supportsAccessMode = true
+            supportsTerminal = true; supportsClaudeChat = true; supportsAgentConfiguration = true; supportsProjects = true; codexReady = true
+            agents = [CLIAgent(id: "codex", title: "Codex", available: true, command: "codex"),
+                      CLIAgent(id: "claude", title: "Claude Code", available: true, command: "claude"),
+                      CLIAgent(id: "gemini", title: "Gemini CLI", available: false, command: "gemini")]
+            if ProcessInfo.processInfo.arguments.contains("--preview-agents") { newAgent = "claude"; newSessionMode = "terminal" }
             supportsSessionManagement = true; supportsDownloads = true
             models = [CodexModel(model: "gpt-5.4", displayName: "GPT-5.4", defaultReasoningEffort: "medium",
                                 supportedReasoningEfforts: [CodexEffort(reasoningEffort: "medium", description: nil)], isDefault: true)]
@@ -138,6 +151,38 @@ final class WorkspaceModel: ObservableObject {
             sessions = [CodexSessionSummary(id: "preview-session", title: "整理工作区界面", cwd: "/projects/codex-ipad",
                                           status: "completed", updatedAt: 0, origin: "app", model: "gpt-5.4")]
             projects = [CodexProject(id: "/projects/codex-ipad", title: "codex-ipad")]
+            if ProcessInfo.processInfo.arguments.contains("--preview-claude") {
+                supportsClaudeModels = true
+                claudeModels = [CodexModel(model: "claude-sonnet-5-5", displayName: "Sonnet 5.5", defaultReasoningEffort: nil,
+                    supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max"].map { CodexEffort(reasoningEffort: $0, description: nil) },
+                    isDefault: true, aliases: ["sonnet"])]
+                selectedModel = "claude-sonnet-5-5"; selectedEffort = "high"
+                newAgent = "claude"; newSessionMode = "chat"
+                selected = CodexSession(id: "preview-session", title: "整理工作区界面", cwd: "/projects/code-pax",
+                    status: "inProgress", turnId: "preview-claude-turn", messages: [
+                        CodexMessage(id: "claude-user", kind: "userMessage", text: "帮我整理工作区界面，保留清晰的聊天和终端入口。", status: "accepted"),
+                        CodexMessage(id: "claude-reply", kind: "agentMessage", text: "我会先检查布局，再调整入口与消息层级。", status: "completed"),
+                        CodexMessage(id: "claude-tool", kind: "commandExecution", text: "Bash\nrg --files CodePax", status: "inProgress")
+                    ], approvals: [], diff: "", error: nil, historyTruncated: false, readOnly: false,
+                    model: "sonnet", effort: nil, accessMode: "default", agent: "claude", mode: "chat")
+                sessions = [CodexSessionSummary(id: "preview-session", title: "整理工作区界面", cwd: "/projects/code-pax",
+                    status: "inProgress", updatedAt: 0, origin: "app", model: "sonnet", agent: "claude", mode: "chat")]
+                projects = [CodexProject(id: "/projects/code-pax", title: "code-pax")]
+            }
+            if ProcessInfo.processInfo.arguments.contains("--preview-concept") {
+                selectedModel = ""; selectedEffort = ""
+                let previewMessages = [
+                    CodexMessage(id: "concept-user", kind: "userMessage", text: "帮我简化登录页面，保留邮箱和验证码。", status: "completed"),
+                    CodexMessage(id: "concept-answer", kind: "agentMessage", text: "**已简化登录流程。**\n\n邮箱与验证码保留在同一页面。  \n错误提示放在对应输入框下方。", status: "completed"),
+                    CodexMessage(id: "concept-files", kind: "fileChange", text: "LoginView.swift\nLoginModel.swift\nLoginTests.swift", status: "completed")
+                ]
+                selected = CodexSession(id: "preview-session", title: "优化登录体验", cwd: "/projects/code-pax",
+                    status: "completed", turnId: nil, messages: previewMessages, approvals: [], diff: "", error: nil,
+                    historyTruncated: false, readOnly: false, model: nil, effort: nil, accessMode: "fullAccess")
+                sessions = [CodexSessionSummary(id: "preview-session", title: "优化登录体验", cwd: "/projects/code-pax",
+                    status: "completed", updatedAt: 0, origin: "app", model: nil)]
+                projects = [CodexProject(id: "/projects/code-pax", title: "code-pax"), CodexProject(id: "/projects/website", title: "website")]
+            }
             if ProcessInfo.processInfo.arguments.contains("--preview-session-management") {
                 sessions[0].pinned = true
                 sessions.append(CodexSessionSummary(id: "preview-archived", title: "之前的连接排查", cwd: "/projects/codex-ipad",
@@ -184,7 +229,27 @@ final class WorkspaceModel: ObservableObject {
         #endif
     }
 
-    var chosenModel: CodexModel? { models.first(where: { $0.model == selectedModel }) }
+    var isClaudeChat: Bool { selected?.agent == "claude" && selected?.isTerminal == false }
+    var chatModels: [CodexModel] {
+        guard isClaudeChat else { return models }
+        return claudeModels
+    }
+    var chosenModel: CodexModel? {
+        chatModels.first(where: { $0.model == selectedModel || $0.aliases?.contains(selectedModel) == true }) ??
+        (isClaudeChat && selectedModel.isEmpty ? claudeModels.first(where: \.isDefault) : nil)
+    }
+    func supportsChat(for agent: String) -> Bool {
+        agent == "codex" ? codexReady : agent == "claude" && supportsClaudeChat
+    }
+
+    func chooseAgent(_ agent: String) {
+        loginNextSession = false
+        newAgent = agent
+        newSessionMode = AgentSessionSelection.hasChat(agent) ? "chat" : "terminal"
+        saveAgentPreferences()
+    }
+
+    var needsClaudeChatUpgrade: Bool { newAgent == "claude" && newSessionMode == "chat" && !supportsClaudeChat }
     func messages(for session: CodexSession) -> [CodexMessage] {
         MessageTimeline.merge(remote: session.messages, local: localSubmissions, sessionID: session.id)
     }
@@ -225,9 +290,45 @@ final class WorkspaceModel: ObservableObject {
         saveOutbox()
     }
 
-    var createsTerminal: Bool { newAgent != "codex" || newSessionMode == "terminal" }
+    func configuration(for agent: String) -> AgentConfiguration {
+        agentConfigurations[agent] ?? .preset(agent)
+    }
+
+    func saveConfiguration(_ configuration: AgentConfiguration, for agent: String) throws {
+        _ = try configuration.fields()
+        var all = agentConfigurations
+        all[agent] = configuration
+        try pendingOperations.save(JSONEncoder().encode(all), for: storageKey + ".agentConfigurations")
+        agentConfigurations = all
+    }
+
+    func saveAgentPreferences() {
+        AgentPreferences(agent: newAgent, mode: newSessionMode, command: customCommand)
+            .save(server: storageKey, defaults: preferenceDefaults)
+    }
+
+    private func restoreAgentPreferences() {
+        let saved = AgentPreferences.load(server: storageKey, defaults: preferenceDefaults)
+        newAgent = saved.agent; newSessionMode = saved.mode; customCommand = saved.command
+        do {
+            if let data = try pendingOperations.read(storageKey + ".agentConfigurations") {
+                agentConfigurations = try JSONDecoder().decode([String: AgentConfiguration].self, from: data)
+            }
+        } catch { self.error = error.localizedDescription }
+    }
+
+    var newSessionSelection: AgentSessionSelection {
+        AgentSessionSelection(agent: newAgent, mode: newSessionMode, login: loginNextSession)
+    }
+    var createsTerminal: Bool { newSessionSelection.mode == "terminal" }
     var canCreateSession: Bool {
-        if !createsTerminal { return codexReady }
+        if !createsTerminal {
+            return newAgent == "codex" ? codexReady : supportsClaudeChat &&
+                (agentConfigurations["claude"] != nil || agents.contains(where: { $0.id == "claude" && $0.available }))
+        }
+        if supportsAgentConfiguration, let configuration = agentConfigurations[newAgent] {
+            return supportsTerminal && !(loginNextSession ? configuration.loginCommand : configuration.executable).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         return supportsTerminal && (newAgent == "custom" ? !customCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty :
             agents.contains(where: { $0.id == newAgent && $0.available }))
     }
@@ -309,6 +410,7 @@ final class WorkspaceModel: ObservableObject {
             resetWorkspace()
             activeServerKey = storageKey
             proxyURL = savedProxy
+            restoreAgentPreferences()
             restoreAccessMode()
             restoreOutbox()
             restoreCompletionReads()
@@ -316,27 +418,23 @@ final class WorkspaceModel: ObservableObject {
         }
         defer { isBusy = false }
         do {
-            for name in ["terminal_runtime", "collaboration", "bridge"] {
+            var resources: [String: Data] = [:]
+            for name in ["terminal_runtime", "claude_runtime", "collaboration", "bridge"] {
                 guard let url = Bundle.main.url(forResource: name, withExtension: "py") else {
                     throw ConnectionError.message("App 缺少后台脚本资源，请重新构建工程。")
                 }
-                let encoded = try Data(contentsOf: url).base64EncodedString()
-                let installer = """
-                import base64,os,pathlib,tempfile
-                os.umask(0o077)
-                directory=pathlib.Path.home()/'.local/share/codex-ipad'
-                directory.mkdir(parents=True,exist_ok=True,mode=0o700)
-                if directory.is_symlink() or directory.stat().st_uid != os.getuid(): raise RuntimeError('Invalid bridge directory')
-                directory.chmod(0o700)
-                target=directory/'\(name).py'
-                if target.is_symlink(): raise RuntimeError('Invalid bridge file')
-                with tempfile.NamedTemporaryFile(dir=directory,delete=False) as file:
-                    file.write(base64.b64decode('\(encoded)',validate=True))
-                    temporary=file.name
-                os.replace(temporary,target)
-                print('installed')
-                """
-                _ = try await connection.runCommand("python3 -c " + RemoteShell.quote(installer), limit: 4096)
+                resources[name + ".py"] = try Data(contentsOf: url)
+            }
+            let installation = BridgeInstallation(resources: resources)
+            do {
+                _ = try await connection.runCommand(installation.setup, limit: 4096)
+                for command in installation.uploads {
+                    _ = try await connection.runCommand(command, limit: 4096)
+                }
+                _ = try await connection.runCommand(installation.finish, limit: 4096)
+            } catch {
+                _ = try? await connection.runCommand(installation.cleanup, limit: 4096)
+                throw error
             }
             let proxy = proxyURL.trimmingCharacters(in: .whitespacesAndNewlines)
             UserDefaults.standard.set(proxy, forKey: storageKey + ".proxy")
@@ -351,10 +449,13 @@ final class WorkspaceModel: ObservableObject {
             codexReady = result.codexReady ?? true
             supportsCatalog = result.protocol >= 2 && codexReady
             supportsTerminal = result.capabilities?.contains("terminal") == true
+            supportsClaudeChat = result.capabilities?.contains("claudeChat") == true
+            supportsClaudeModels = result.capabilities?.contains("claudeModels") == true
+            supportsAgentConfiguration = result.capabilities?.contains("agentConfiguration") == true
             supportsProjects = result.protocol >= 2
             agents = result.agents ?? []
             if !codexReady && newAgent == "codex", let first = agents.first(where: { $0.available }) {
-                newAgent = first.id; newSessionMode = "terminal"
+                chooseAgent(first.id)
             }
             supportsAccessMode = result.capabilities?.contains("accessMode") == true
             supportsUsage = result.capabilities?.contains("usage") == true
@@ -426,6 +527,7 @@ final class WorkspaceModel: ObservableObject {
             resetWorkspace()
             activeServerKey = storageKey
             proxyURL = savedProxy
+            restoreAgentPreferences()
             restoreAccessMode()
             restoreOutbox()
             restoreCompletionReads()
@@ -471,7 +573,7 @@ final class WorkspaceModel: ObservableObject {
         supportsCollaboration = false
         draftOwner = nil
         nextPrepareAttempt = .distantPast
-        sessions = []; projects = []; models = []; selected = nil; selectedID = nil
+        sessions = []; projects = []; models = []; claudeModels = []; supportsClaudeModels = false; selected = nil; selectedID = nil
         isPrepared = false; supportsCatalog = false; historyCursor = nil; catalogStatus = ""
         supportsAccessMode = false; supportsSessionManagement = false; supportsDownloads = false
         supportsUsage = false; accountUsage = nil; usageError = nil
@@ -479,7 +581,8 @@ final class WorkspaceModel: ObservableObject {
         localSubmissions = []
         attachmentDrafts = [:]; supportsAttachments = false
         completionReads = CompletionReads(); readingSessionID = nil
-        supportsTerminal = false; supportsProjects = false; codexReady = false; agents = []
+        supportsTerminal = false; supportsClaudeChat = false; supportsAgentConfiguration = false; agentConfigurations = [:]; loginNextSession = false
+        supportsProjects = false; codexReady = false; agents = []
         newAgent = "codex"; newSessionMode = "chat"; customCommand = ""
         selectedModel = ""; selectedEffort = ""; draft = ""; hasUncertainSend = false; listing = nil; error = nil
         hasUncertainCreate = false
@@ -511,6 +614,31 @@ final class WorkspaceModel: ObservableObject {
     }
 
     func loadModels() async {
+        if isClaudeChat {
+            guard supportsClaudeModels else {
+                error = "请更新服务器后台以读取 Claude 具体型号和推理强度。"
+                return
+            }
+            let identifier = selectedID
+            let previousModel = selectedModel
+            let previousEffort = selectedEffort
+            do {
+                var fields: [String: JSONValue] = ["action": .string("models"), "agent": .string("claude"), "refresh": .bool(true)]
+                if let identifier { fields["sessionId"] = .string(identifier) }
+                let catalog: CodexModelCatalog = try await request(fields)
+                guard selectedID == identifier, isClaudeChat else { return }
+                claudeModels = catalog.models
+                if selectedModel == previousModel, !previousModel.isEmpty,
+                   let resolved = catalog.models.first(where: { $0.model == previousModel || $0.aliases?.contains(previousModel) == true }) {
+                    selectedModel = resolved.model
+                }
+                if selectedEffort == previousEffort, !previousEffort.isEmpty,
+                   chosenModel?.supportedReasoningEfforts.contains(where: { $0.reasoningEffort == previousEffort }) != true {
+                    selectedEffort = ""
+                }
+            } catch { if selectedID == identifier { self.error = error.localizedDescription } }
+            return
+        }
         guard supportsCatalog else { return }
         do {
             let catalog: CodexModelCatalog = try await request(["action": .string("models"), "refresh": .bool(true)])
@@ -586,6 +714,7 @@ final class WorkspaceModel: ObservableObject {
         if let selected, selected.id == identifier {
             selectedModel = selected.model ?? ""
             selectedEffort = selected.effort ?? ""
+            if isClaudeChat { await loadModels() }
         }
     }
 
@@ -602,7 +731,7 @@ final class WorkspaceModel: ObservableObject {
         return added
     }
 
-    func create(cwd: String) async -> Bool {
+    func create(cwd: String, retryPending: Bool = false) async -> Bool {
         guard canCreateSession || hasUncertainCreate else { return false }
         var created = false
         await action {
@@ -612,16 +741,30 @@ final class WorkspaceModel: ObservableObject {
                 guard fields["cwd"]?.string == cwd else {
                     throw ConnectionError.message("另一个目录的新建结果待确认，请先重试原新建请求。")
                 }
+                guard retryPending || self.newSessionSelection.matches(fields) else {
+                    throw ConnectionError.message("还有另一种 Agent 或模式的新建请求待确认。请先处理原请求，不会改用它创建当前会话。")
+                }
             } else {
                 var body: [String: JSONValue] = ["action": .string("create"), "cwd": .string(cwd), "operationId": .string(UUID().uuidString)]
+                body.merge(self.newSessionSelection.fields) { _, new in new }
                 if self.supportsTerminal {
-                    body["agent"] = .string(self.newAgent)
-                    body["mode"] = .string(self.createsTerminal ? "terminal" : "chat")
-                    if self.newAgent == "custom" { body["command"] = .string(self.customCommand) }
+                    if self.createsTerminal, let configuration = self.agentConfigurations[self.newAgent] {
+                        guard self.supportsAgentConfiguration else { throw ConnectionError.message("请先重新准备工作区以应用 Agent 配置功能。") }
+                        body["agentConfiguration"] = try configuration.fields()
+                        body["login"] = .bool(self.loginNextSession)
+                    } else if self.newAgent == "custom" { body["command"] = .string(self.customCommand) }
                 }
                 if !self.createsTerminal {
                     try self.validateAccessMode()
-                    self.addModelSettings(to: &body)
+                    body["accessMode"] = .string(self.accessMode.rawValue)
+                    if self.newAgent == "claude" {
+                        body["agentConfiguration"] = try self.configuration(for: "claude").fields()
+                        let configuredModel = self.configuration(for: "claude").model
+                        if !configuredModel.isEmpty { body["model"] = .string(configuredModel) }
+                    } else {
+                        if !self.isClaudeChat { self.addModelSettings(to: &body) }
+                        if let model = self.agentConfigurations["codex"]?.model, !model.isEmpty { body["model"] = .string(model) }
+                    }
                 }
                 fields = body
                 try self.pendingOperations.save(JSONEncoder().encode(fields), for: self.pendingCreateKey)
@@ -631,7 +774,17 @@ final class WorkspaceModel: ObservableObject {
             guard let id = value["id"].string else { throw ConnectionError.message("服务器没有返回新会话 ID。") }
             try self.pendingOperations.remove(self.pendingCreateKey)
             self.hasUncertainCreate = false
+            self.loginNextSession = false
             await self.select(id)
+            if let session = self.selected, session.id == id {
+                let actual = AgentSessionSelection(agent: session.agent ?? "codex", mode: session.mode ?? "chat")
+                guard actual.matches(fields) else {
+                    self.clearSelection()
+                    throw ConnectionError.message("后台返回的 Agent / 模式与请求不一致（\(session.agentTitle)）。请重新准备工作区；本次不会作为所选 Agent 继续发送。")
+                }
+            } else {
+                throw ConnectionError.message("会话已创建，但尚未读取到会话详情。请刷新列表确认，不要重复新建。")
+            }
             created = true
         }
         return created
@@ -642,7 +795,7 @@ final class WorkspaceModel: ObservableObject {
             guard let pending = try pendingOperations.read(pendingCreateKey) else { hasUncertainCreate = false; return }
             let fields = try JSONDecoder().decode([String: JSONValue].self, from: pending)
             guard let cwd = fields["cwd"]?.string else { throw ConnectionError.message("待确认的新建记录格式不正确。") }
-            _ = await create(cwd: cwd)
+            _ = await create(cwd: cwd, retryPending: true)
         } catch { self.error = error.localizedDescription }
     }
 
@@ -955,14 +1108,26 @@ final class WorkspaceModel: ObservableObject {
 
     private func request<Value: Decodable>(_ fields: [String: JSONValue]) async throws -> Value {
         let server = storageKey
-        let value: Value = try await connection.runBridge(mode: "call", fields: fields)
+        var transmitted = fields
+        if (fields["action"]?.string == "send" && isClaudeChat && fields["sessionId"]?.string == selectedID) ||
+            (fields["action"]?.string == "models" && fields["agent"]?.string == "claude") {
+            // Attach secrets only at transmission time. Pending sends/outbox in
+            // UserDefaults retain the message, never the Agent environment.
+            transmitted["agentConfiguration"] = try configuration(for: "claude").fields()
+        }
+        let value: Value = try await connection.runBridge(mode: "call", fields: transmitted)
         guard server == storageKey else { throw CancellationError() }
         return value
     }
 
     private func addModelSettings(to fields: inout [String: JSONValue]) {
         fields["accessMode"] = .string(accessMode.rawValue)
-        guard supportsCatalog, !selectedModel.isEmpty else { return }
+        if isClaudeChat {
+            if !selectedModel.isEmpty { fields["model"] = .string(selectedModel) }
+            if !selectedEffort.isEmpty { fields["effort"] = .string(selectedEffort) }
+            return
+        }
+        guard supportsCatalog || isClaudeChat, !selectedModel.isEmpty else { return }
         fields["model"] = .string(selectedModel)
         if !selectedEffort.isEmpty { fields["effort"] = .string(selectedEffort) }
     }

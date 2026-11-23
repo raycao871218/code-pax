@@ -14,8 +14,7 @@ struct AttachmentPickerButton: View {
             Button("从文件选择", systemImage: "folder") { showFiles = true }
             Button("从照片选择", systemImage: "photo.on.rectangle") { showPhotos = true }
         } label: {
-            Image(systemName: "plus").font(.title3).frame(width: 36, height: 36)
-                .background(theme.isCompanion ? theme.accent.opacity(0.10) : Color.primary.opacity(0.05), in: Circle())
+            Image(systemName: "paperclip").font(.title3).frame(width: 36, height: 36)
                 .contentShape(Rectangle())
         }.tint(theme.isCompanion ? theme.accent : .primary).accessibilityLabel("添加附件")
             .disabled(!model.canAddAttachments)

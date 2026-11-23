@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 /// Native editor handles physical keyboards and the software Return key alike.
 struct ComposerTextInput: UIViewRepresentable {
+    @Environment(\.locale) private var locale
     @Environment(\.interfaceTheme) private var theme
     @Binding var text: String
     var canSubmit: Bool
@@ -20,7 +21,7 @@ struct ComposerTextInput: UIViewRepresentable {
         view.textContainerInset = .zero
         view.textContainer.lineFragmentPadding = 0
         view.returnKeyType = .send
-        view.accessibilityLabel = "给 Codex 一个任务"
+        view.accessibilityLabel = L10n.text("描述任务…", locale: locale)
         view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return view
     }
@@ -31,6 +32,7 @@ struct ComposerTextInput: UIViewRepresentable {
             view.unmarkText()
             view.text = text
         }
+        view.accessibilityLabel = L10n.text("描述任务…", locale: locale)
         view.tintColor = UIColor(theme.accent)
         view.canSubmit = canSubmit
         view.canAttach = canAttach
@@ -42,7 +44,7 @@ struct ComposerTextInput: UIViewRepresentable {
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: ComposerTextView, context: Context) -> CGSize? {
         let width = proposal.width ?? 300
         let size = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: min(190, max(64, size.height)))
+        return CGSize(width: width, height: min(160, max(36, size.height)))
     }
 }
 

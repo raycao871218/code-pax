@@ -2,7 +2,7 @@ import XCTest
 @testable import CodePax
 
 final class CollaborationTests: XCTestCase {
-    private func run(status: String = "running", coordinatorSession: String? = nil,
+    private func makeRun(status: String = "running", coordinatorSession: String? = nil,
                      snapshot: String? = nil, applied: String? = nil) throws -> CollaborationRun {
         let worker: [String: Any] = ["id": "worker-1", "title": "API", "role": "worker", "status": "failed",
             "worktree": "/repo/.git/team/worker", "branch": "codex/team/worker", "result": "", "integrated": false, "attempt": 1]
@@ -17,16 +17,16 @@ final class CollaborationTests: XCTestCase {
     }
 
     func testApplyingRequiresCompletedCoordinatorSnapshotAndCannotApplyTwice() throws {
-        XCTAssertFalse(try run(snapshot: "snapshot").canApply)
-        XCTAssertFalse(try run(status: "completed").canApply)
-        XCTAssertTrue(try run(status: "completed", snapshot: "snapshot").canApply)
-        XCTAssertFalse(try run(status: "completed", snapshot: "snapshot", applied: "snapshot").canApply)
+        XCTAssertFalse(try makeRun(snapshot: "snapshot").canApply)
+        XCTAssertFalse(try makeRun(status: "completed").canApply)
+        XCTAssertTrue(try makeRun(status: "completed", snapshot: "snapshot").canApply)
+        XCTAssertFalse(try makeRun(status: "completed", snapshot: "snapshot", applied: "snapshot").canApply)
     }
 
     func testWorkerRetryIsDisabledAfterCoordinatorHasStarted() throws {
-        let pending = try run()
+        let pending = try makeRun()
         XCTAssertTrue(pending.canRetry(pending.workers[0]))
-        let collecting = try run(coordinatorSession: "coordinator-thread")
+        let collecting = try makeRun(coordinatorSession: "coordinator-thread")
         XCTAssertFalse(collecting.canRetry(collecting.workers[0]))
     }
 
@@ -40,7 +40,7 @@ final class CollaborationTests: XCTestCase {
     }
 
     func testTeamMessagesResolveRecipientsAndKeepTasksSeparate() throws {
-        let team = try run()
+        let team = try makeRun()
         XCTAssertEqual(team.memberTitle("worker-1"), "API")
         XCTAssertEqual(team.memberTitle("all"), "所有成员")
         XCTAssertEqual(team.workers.count, 1)

@@ -57,7 +57,7 @@ private struct MarkdownCodeBlock: View {
                     copied = true
                     Task { try? await Task.sleep(for: .seconds(2)); copied = false }
                 } label: {
-                    Label(copied ? "已复制" : "复制", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    Label(LocalizedStringKey(copied ? "已复制" : "复制"), systemImage: copied ? "checkmark" : "doc.on.doc")
                 }.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
                     .accessibilityLabel("复制代码")
             }.padding(.horizontal, 14).padding(.vertical, 10)

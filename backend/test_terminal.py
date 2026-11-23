@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import patch
 
 from bridge import Bridge, BridgeError, UnavailableCodex, call
-from terminal_runtime import MAX_SCROLLBACK, agent_catalog, dimensions, launch_command
+from terminal_runtime import MAX_SCROLLBACK, agent_catalog, dimensions, launch_command, launch_configuration
 
 
 def missing_codex(_callback):
@@ -26,6 +26,28 @@ class AgentCatalogTests(unittest.TestCase):
             self.assertEqual(launch_command("claude"), ["/bin/claude"])
             self.assertEqual(launch_command("gemini"), ["/bin/gemini"])
             self.assertEqual(launch_command("opencode"), ["/bin/opencode"])
+
+    def test_configuration_preserves_path_arguments_model_and_environment_without_shell(self):
+        config = dict(executable="/opt/my tool/claude", arguments="--flag 'two words' '$(touch /tmp/no)'",
+                      model="model name", modelArgument="-m", environment={"API_KEY": "private"})
+        with patch("terminal_runtime.shutil.which", side_effect=lambda exe, **kw: exe):
+            argv, env = launch_configuration("claude", config)
+        self.assertEqual(argv, ["/opt/my tool/claude", "--flag", "two words", "$(touch /tmp/no)", "-m", "model name"])
+        self.assertEqual(env, {"API_KEY": "private"})
+        self.assertNotIn("API_KEY", os.environ)
+        config["loginCommand"] = "auth-tool login --interactive"
+        with patch("terminal_runtime.shutil.which", side_effect=lambda exe, **kw: "/bin/" + exe):
+            argv, env = launch_configuration("claude", config, login=True)
+        self.assertEqual(argv, ["/bin/auth-tool", "login", "--interactive"])
+
+    def test_invalid_configuration_is_rejected_before_start(self):
+        for config in [None, {"environment": []}, {"environment": {"BAD NAME": "a"}},
+                       {"environment": {"KEY": "bad\x00value"}}, {"arguments": "bad\narg"},
+                       {"model": "test", "modelArgument": "--model --unsafe"}]:
+            with self.subTest(config=config), self.assertRaises(ValueError):
+                launch_configuration("claude", config)
+        with self.assertRaises(ValueError):
+            launch_configuration("claude", {}, login=True)
 
     def test_absent_cli_and_invalid_configuration_are_rejected(self):
         for agent, command in [("unknown", None), ("custom", ""), ("custom", "echo\nhello"),
@@ -127,6 +149,34 @@ class TerminalIntegrationTests(unittest.TestCase):
         self.assertTrue(summary["pinned"])
         self.assertEqual(self.bridge.open_session(dict(sessionId=identifier)), {"id": identifier})
         self.assertEqual(self.bridge.history_page(dict(sessionId=identifier)), {"messages": [], "nextCursor": None})
+
+    def test_preset_configuration_reaches_real_process_and_secrets_are_not_in_session(self):
+        config = dict(executable=sys.executable, arguments=shlex.join(["-u", "-c",
+            "import os,sys; print(os.environ.get('CONFIG_TEST_SECRET')); print(repr(sys.argv[1:]))"]),
+            model="test model", modelArgument="--model", environment={"CONFIG_TEST_SECRET": "configured-secret"})
+        result = self.operation("create", cwd=str(self.project), agent="claude", mode="terminal", agentConfiguration=config)
+        self.assertTrue(result["ok"], result)
+        identifier = result["result"]["id"]
+        terminal = self.bridge.terminals.get(identifier)
+        if terminal: self.handles.append(terminal)
+        self.wait_for(lambda: self.bridge.sessions[identifier]["status"] == "completed")
+        output = self.output(identifier).decode()
+        self.assertIn("configured-secret", output)
+        self.assertIn("['--model', 'test model']", output)
+        self.assertEqual(self.bridge.sessions[identifier]["agent"], "claude")
+        self.assertNotIn("configured-secret", json.dumps(self.bridge.sessions))
+        self.assertNotIn("configured-secret", str(self.bridge.store.db.execute("SELECT * FROM operations").fetchall()))
+
+    def test_login_uses_saved_command_and_environment_in_real_terminal(self):
+        config = dict(executable="unavailable-agent", loginCommand=shlex.join([sys.executable, "-c",
+                      "import os; print('LOGIN:'+os.environ['LOGIN_TEST'])"]), environment={"LOGIN_TEST": "ready"}, model="unused")
+        result = self.operation("create", cwd=str(self.project), agent="claude", mode="terminal", login=True, agentConfiguration=config)
+        self.assertTrue(result["ok"], result)
+        identifier = result["result"]["id"]
+        terminal = self.bridge.terminals.get(identifier)
+        if terminal: self.handles.append(terminal)
+        self.wait_for(lambda: self.bridge.sessions[identifier]["status"] == "completed")
+        self.assertIn(b"LOGIN:ready", self.output(identifier))
 
     def test_controlling_tty_cwd_unicode_and_successful_exit(self):
         identifier = self.create("import os; print(os.getcwd()); print(os.isatty(0), os.isatty(1)); print(os.ttyname(0)); print('你好')")
@@ -247,7 +297,7 @@ class TerminalIntegrationTests(unittest.TestCase):
             self.bridge.open_session(dict(sessionId=identifier))
             self.bridge.terminal_read(dict(sessionId=identifier))
             spawn.assert_not_called()
-        for agent, mode in [("claude", "chat"), ("codex", "invalid")]:
+        for agent, mode in [("gemini", "chat"), ("codex", "invalid")]:
             self.assertFalse(self.operation("create", cwd=str(self.project), agent=agent, mode=mode)["ok"])
 
     def test_standalone_daemon_multiple_cli_clients_shutdown_and_reopen(self):

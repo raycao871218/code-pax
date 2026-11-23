@@ -42,7 +42,7 @@ private struct FullMessageView: View {
                         Text(text).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
                     } else { RichMarkdown(text: text).equatable() }
                     if let error {
-                        Text(error).font(.callout).foregroundStyle(.red)
+                        AppText(error).font(.callout).foregroundStyle(.red)
                         Button("从头重新读取") {
                             text = ""; revision = nil; nextOffset = 0; loaded = 0
                             Task { await loadNext() }

@@ -1,0 +1,6419 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "%@:%@\n\n%@\n\n请与服务器上的 SSH 主机指纹核对。确认后保存，下次连接会自动校验。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@:%@\n\n%@\n\nCompare this with the server's SSH host fingerprint. Once trusted, it will be verified on future connections."
+          }
+        }
+      }
+    },
+    "%lld 个已完成的未读对话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld completed unread chats"
+          }
+        }
+      }
+    },
+    "1 · 准备头像": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 · Prepare an avatar"
+          }
+        }
+      }
+    },
+    "1 · 准备服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 · Prepare the server"
+          }
+        }
+      }
+    },
+    "2 · 保存连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 · Save the connection"
+          }
+        }
+      }
+    },
+    "2 · 制作动作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 · Create animation"
+          }
+        }
+      }
+    },
+    "2 · 项目目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 · Project directory"
+          }
+        }
+      }
+    },
+    "3 · 导入与预览": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 · Import and preview"
+          }
+        }
+      }
+    },
+    "3 · 连接并确认身份": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 · Connect and verify identity"
+          }
+        }
+      }
+    },
+    "Agents 与启动配置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agents and launch settings"
+          }
+        }
+      }
+    },
+    "Claude 聊天应用路径、环境变量和模型；会话恢复、消息格式与权限参数由 App 管理。模型可填写 sonnet、opus、haiku 或账号可用的完整模型 ID。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude chat uses the configured executable, environment and model. The app manages session recovery, message format and permissions. Use sonnet, opus, haiku or a full model ID available to your account."
+          }
+        }
+      }
+    },
+    "Claude 聊天需要更新后台，请完成当前任务后重新准备工作区。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude chat requires a backend update. Finish active tasks, then prepare the workspace again."
+          }
+        }
+      }
+    },
+    "Code Pax · SSH 工作空间": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code Pax · SSH workspaces"
+          }
+        }
+      }
+    },
+    "Codex 原生聊天仅应用默认模型，其余启动配置用于交互终端。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex native chat uses only the default model. Other launch settings apply to interactive terminals."
+          }
+        }
+      }
+    },
+    "Codex 和 Claude Code 支持原生聊天与交互终端；其他工具在交互终端中运行。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex and Claude Code support native chat and interactive terminals. Other tools run in terminals."
+          }
+        }
+      }
+    },
+    "Codex 数据": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex data"
+          }
+        }
+      }
+    },
+    "Codex 用量与额度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex usage and limits"
+          }
+        }
+      }
+    },
+    "Git 仓库根目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git repository root"
+          }
+        }
+      }
+    },
+    "HTTP 代理（可选）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP proxy (optional)"
+          }
+        }
+      }
+    },
+    "IP 或主机名": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IP address or hostname"
+          }
+        }
+      }
+    },
+    "SSH 密码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH password"
+          }
+        }
+      }
+    },
+    "Token 明细": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token details"
+          }
+        }
+      }
+    },
+    "一次操作的结果待确认": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An operation needs confirmation"
+          }
+        }
+      }
+    },
+    "上下文占用（估算）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context usage (estimated)"
+          }
+        }
+      }
+    },
+    "下次任务的权限": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissions for the next task"
+          }
+        }
+      }
+    },
+    "个性化": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personalization"
+          }
+        }
+      }
+    },
+    "为新会话选择工具": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a tool for a new session"
+          }
+        }
+      }
+    },
+    "主控": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coordinator"
+          }
+        }
+      }
+    },
+    "交互终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interactive terminal"
+          }
+        }
+      }
+    },
+    "从头重新读取": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload from the beginning"
+          }
+        }
+      }
+    },
+    "从文件导入头像": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import avatar from Files"
+          }
+        }
+      }
+    },
+    "从文件选择": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose from Files"
+          }
+        }
+      }
+    },
+    "从照片选择": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose from Photos"
+          }
+        }
+      }
+    },
+    "从照片选择头像": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose avatar from Photos"
+          }
+        }
+      }
+    },
+    "任务名称": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task name"
+          }
+        }
+      }
+    },
+    "会保留历史会话。如果仍有运行中或待审批的任务，服务器会拒绝重启。代理设置在新的后台进程启动时生效。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat history is preserved. The server refuses to restart while tasks are running or awaiting approval. Proxy changes take effect when the new backend starts."
+          }
+        }
+      }
+    },
+    "会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chats"
+          }
+        }
+      }
+    },
+    "会话历史": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat history"
+          }
+        }
+      }
+    },
+    "会话操作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat actions"
+          }
+        }
+      }
+    },
+    "会话模式": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session mode"
+          }
+        }
+      }
+    },
+    "使用当前聊天的模型和权限设置。需要审批或澄清时，可从成员卡片打开会话处理。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses the current chat's model and permissions. Open a member's chat to handle approvals or questions."
+          }
+        }
+      }
+    },
+    "例如 claude": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For example, claude"
+          }
+        }
+      }
+    },
+    "例如 claude auth login": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For example, claude auth login"
+          }
+        }
+      }
+    },
+    "例如：开发服务器 / NAS": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For example: Dev server / NAS"
+          }
+        }
+      }
+    },
+    "保存": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        }
+      }
+    },
+    "保存 / 分享": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save / Share"
+          }
+        }
+      }
+    },
+    "保存后，点击服务器卡片连接。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After saving, use the server's Connect button."
+          }
+        }
+      }
+    },
+    "保存服务器设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save server settings"
+          }
+        }
+      }
+    },
+    "信任并连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trust and connect"
+          }
+        }
+      }
+    },
+    "偏好设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preferences"
+          }
+        }
+      }
+    },
+    "停止任务": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop task"
+          }
+        }
+      }
+    },
+    "停止协作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop collaboration"
+          }
+        }
+      }
+    },
+    "停止此成员": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop this member"
+          }
+        }
+      }
+    },
+    "允许这一次": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow once"
+          }
+        }
+      }
+    },
+    "先刷新查看任务状态。重试将复用原请求，避免重复启动或应用成果。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh to check task status first. Retrying reuses the original request to avoid starting or applying work twice."
+          }
+        }
+      }
+    },
+    "先在“连接”页面登录服务器。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to a server on the Connections page first."
+          }
+        }
+      }
+    },
+    "其中推理输出": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reasoning output"
+          }
+        }
+      }
+    },
+    "其中缓存输入": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cached input"
+          }
+        }
+      }
+    },
+    "创建一组协作任务": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create collaborative tasks"
+          }
+        }
+      }
+    },
+    "删除": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "删除服务器及保存的密码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete server and saved password"
+          }
+        }
+      }
+    },
+    "删除这台服务器？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this server?"
+          }
+        }
+      }
+    },
+    "制作引导与提示词模板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creation guide and prompt templates"
+          }
+        }
+      }
+    },
+    "刷新会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh chat"
+          }
+        }
+      }
+    },
+    "刷新模型与强度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh models and effort"
+          }
+        }
+      }
+    },
+    "刷新模型列表": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh model list"
+          }
+        }
+      }
+    },
+    "刷新用量": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh usage"
+          }
+        }
+      }
+    },
+    "剩余 %@%%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%% remaining"
+          }
+        }
+      }
+    },
+    "加载下一段": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load next section"
+          }
+        }
+      }
+    },
+    "动作预览": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Animation preview"
+          }
+        }
+      }
+    },
+    "协作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collaboration"
+          }
+        }
+      }
+    },
+    "协作成员由后台调度。可在协作面板留言、停止或重试；审批仍在上方处理。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Members are scheduled by the backend. Send notes, stop or retry in the collaboration panel. Handle approvals above."
+          }
+        }
+      }
+    },
+    "协作留言": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collaboration note"
+          }
+        }
+      }
+    },
+    "协作详情": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collaboration details"
+          }
+        }
+      }
+    },
+    "协作需要可用的 Codex 聊天后台。请确认服务器已安装并登录 Codex；若有后台更新，等待现有任务结束后重新准备。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collaboration requires a working Codex chat backend. Install and sign in to Codex on the server. Finish existing tasks before applying backend updates."
+          }
+        }
+      }
+    },
+    "历史与模型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History and models"
+          }
+        }
+      }
+    },
+    "原生聊天": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Native chat"
+          }
+        }
+      }
+    },
+    "参数支持引号，按参数列表执行。环境变量只传给对应进程。保存后，可从 Agent 页面启动登录终端。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arguments support quotes and run as an argument list. Environment variables apply only to the corresponding process. After saving, launch a login terminal from the Agents page."
+          }
+        }
+      }
+    },
+    "发给": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send to"
+          }
+        }
+      }
+    },
+    "发送消息": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send message"
+          }
+        }
+      }
+    },
+    "发送留言": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send note"
+          }
+        }
+      }
+    },
+    "发送结果待确认。重试会核对原消息，不会发送输入框中的新草稿。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delivery needs confirmation. Retry checks the original message and does not send your new draft."
+          }
+        }
+      }
+    },
+    "取消": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "取消置顶": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unpin"
+          }
+        }
+      }
+    },
+    "取消重连": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel reconnection"
+          }
+        }
+      }
+    },
+    "只删除 iPad 上的连接设置和钥匙串密码，不删除服务器上的项目或会话。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes only the iPad connection settings and keychain password. Server projects and chats are kept."
+          }
+        }
+      }
+    },
+    "只在已核实服务器更换或重新安装时使用。下次连接会再次要求确认身份。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use only after verifying that the server was replaced or reinstalled. Identity verification will be required on the next connection."
+          }
+        }
+      }
+    },
+    "可用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available"
+          }
+        }
+      }
+    },
+    "可选": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional"
+          }
+        }
+      }
+    },
+    "同步服务器历史": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync server history"
+          }
+        }
+      }
+    },
+    "后台状态": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backend status"
+          }
+        }
+      }
+    },
+    "启动": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch"
+          }
+        }
+      }
+    },
+    "启动参数": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch arguments"
+          }
+        }
+      }
+    },
+    "命令或完整路径": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command or full path"
+          }
+        }
+      }
+    },
+    "回到“配色与角色”，先导入头像，再导入动作；检查动作预览，调整播放速度即可立即使用。单个文件最多 16 MB，动图最多 48 帧。GIF 建议从“文件”导入，避免照片导出成静态图。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to Colors and character, import an avatar and then an animation. Check the preview and adjust playback speed. Each file is limited to 16 MB and animations to 48 frames. Import GIFs from Files to preserve animation."
+          }
+        }
+      }
+    },
+    "回答完成，未读": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply complete, unread"
+          }
+        }
+      }
+    },
+    "在下面输入任务，%@ 会直接在这个项目中工作。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a task below. %@ will work directly in this project."
+          }
+        }
+      }
+    },
+    "在服务器安装 CLI，或在配置中填写完整路径。配置按服务器保存，新会话使用当前选择。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install the CLI on the server or configure its full path. Settings are saved per server and used for new sessions."
+          }
+        }
+      }
+    },
+    "复制": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        }
+      }
+    },
+    "复制代码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy code"
+          }
+        }
+      }
+    },
+    "复制全文": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy full text"
+          }
+        }
+      }
+    },
+    "复制已加载内容": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy loaded content"
+          }
+        }
+      }
+    },
+    "外观": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
+          }
+        }
+      }
+    },
+    "外观与个性化": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance and personalization"
+          }
+        }
+      }
+    },
+    "外观与设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance and settings"
+          }
+        }
+      }
+    },
+    "多 Agent 协作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multi-agent collaboration"
+          }
+        }
+      }
+    },
+    "头像与动作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avatar and animation"
+          }
+        }
+      }
+    },
+    "套餐": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan"
+          }
+        }
+      }
+    },
+    "如何连接服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to connect a server"
+          }
+        }
+      }
+    },
+    "子目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subdirectories"
+          }
+        }
+      }
+    },
+    "字号 %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Font size %lld"
+          }
+        }
+      }
+    },
+    "安装与使用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation and usage"
+          }
+        }
+      }
+    },
+    "完成": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "完整内容": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full content"
+          }
+        }
+      }
+    },
+    "完整请求详情": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full request details"
+          }
+        }
+      }
+    },
+    "审阅成果差异": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review result diff"
+          }
+        }
+      }
+    },
+    "审阅汇总差异": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review combined diff"
+          }
+        }
+      }
+    },
+    "密码保存到本机钥匙串，不写入连接配置，也不通过 iCloud 同步。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The password is stored in this device's keychain, outside the connection settings, and is not synced through iCloud."
+          }
+        }
+      }
+    },
+    "密码只保留在内存中，不保存到设备存储。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The password stays in memory and is not saved to device storage."
+          }
+        }
+      }
+    },
+    "导入动图 / 四帧图": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import animation / four-frame image"
+          }
+        }
+      }
+    },
+    "尚未收到这条会话的 token 用量。运行下一次任务后自动更新。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No token usage has been received for this chat. It updates after the next task."
+          }
+        }
+      }
+    },
+    "工作区": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace"
+          }
+        }
+      }
+    },
+    "工具与设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tools and settings"
+          }
+        }
+      }
+    },
+    "差异过长，仅显示前 128 KiB。完整成果保留在服务器成果分支。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing only the first 128 KiB of this diff. The full result remains on the server's result branch."
+          }
+        }
+      }
+    },
+    "已保存的服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved servers"
+          }
+        }
+      }
+    },
+    "已加载 %lld / %lld 字符": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loaded %lld / %lld characters"
+          }
+        }
+      }
+    },
+    "已复制": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied"
+          }
+        }
+      }
+    },
+    "已导入 %lld 帧动作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported %lld animation frames"
+          }
+        }
+      }
+    },
+    "已归档会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archived sessions"
+          }
+        }
+      }
+    },
+    "已归档聊天": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archived chats"
+          }
+        }
+      }
+    },
+    "已整合到主控工作区": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integrated into coordinator workspace"
+          }
+        }
+      }
+    },
+    "已显示的额度可能是上次成功读取的结果。 ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Displayed limits may be from the last successful refresh. "
+          }
+        }
+      }
+    },
+    "已核实服务器状态，清除本机待确认记录？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the local pending record after checking server status?"
+          }
+        }
+      }
+    },
+    "已核实服务器状态，清除记录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server status checked, clear local record"
+          }
+        }
+      }
+    },
+    "已核实状态，清除本机记录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status checked, clear local record"
+          }
+        }
+      }
+    },
+    "已核实终端状态，清除本机待确认输入？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear pending local input after checking terminal status?"
+          }
+        }
+      }
+    },
+    "已检查会话列表，清除本机待确认的新建记录？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the pending creation record after checking the session list?"
+          }
+        }
+      }
+    },
+    "已连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected"
+          }
+        }
+      }
+    },
+    "已送达的输入不会撤销。请先查看终端，避免再次输入同一条命令。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delivered input cannot be undone. Check the terminal before entering the same command again."
+          }
+        }
+      }
+    },
+    "已配置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configured"
+          }
+        }
+      }
+    },
+    "应用前会检查原项目仍在原分支、没有未提交修改且未产生新提交。成果不会自动覆盖项目。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before applying, the project must remain on the original branch with no uncommitted changes or new commits. Results never overwrite the project automatically."
+          }
+        }
+      }
+    },
+    "应用汇总成果到项目": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply combined result to project"
+          }
+        }
+      }
+    },
+    "开启服务器的 SSH 服务，确认 iPad 能访问该地址。准备 SSH 用户名、密码和端口，常见端口是 22。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable SSH on the server and make sure the iPad can reach it. Prepare the SSH username, password and port, usually 22."
+          }
+        }
+      }
+    },
+    "开始": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        }
+      }
+    },
+    "开始一个项目会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a project session"
+          }
+        }
+      }
+    },
+    "归档聊天": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive chat"
+          }
+        }
+      }
+    },
+    "当前任务的代码差异": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current task's code changes"
+          }
+        }
+      }
+    },
+    "当前会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current chat"
+          }
+        }
+      }
+    },
+    "当前后台不支持 Claude 聊天。更新后台后才能创建；不会改用 Codex。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This backend does not support Claude chat yet. Update it before creating a chat. Codex will not be substituted."
+          }
+        }
+      }
+    },
+    "当前显示最近 40 条消息，更早记录保留在服务器。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing the latest 40 messages. Earlier history remains on the server."
+          }
+        }
+      }
+    },
+    "当前暂无账号额度数据。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account limits are currently unavailable."
+          }
+        }
+      }
+    },
+    "当前服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current server"
+          }
+        }
+      }
+    },
+    "当前服务器后台尚未启用 Claude 聊天。请先完成运行中的任务，再更新后台；不会改用 Codex 或终端。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude chat is not enabled on this server's backend. Finish running tasks, then update the backend. The app will not substitute Codex or terminal mode."
+          }
+        }
+      }
+    },
+    "当前版本不支持授予额外权限。可以拒绝请求，或停止当前任务。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version cannot grant additional permissions. Deny the request or stop the current task."
+          }
+        }
+      }
+    },
+    "待检测": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not checked"
+          }
+        }
+      }
+    },
+    "待确认操作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending operation"
+          }
+        }
+      }
+    },
+    "快捷键栏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut bar"
+          }
+        }
+      }
+    },
+    "恢复": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+    "恢复默认头像和动作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore default avatar and animation"
+          }
+        }
+      }
+    },
+    "所有成员": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All members"
+          }
+        }
+      }
+    },
+    "打开协作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open collaboration"
+          }
+        }
+      }
+    },
+    "打开成员会话 / 处理审批": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open member chat / handle approval"
+          }
+        }
+      }
+    },
+    "打开服务器终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open server terminal"
+          }
+        }
+      }
+    },
+    "打开目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open directory"
+          }
+        }
+      }
+    },
+    "打开项目终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open project terminal"
+          }
+        }
+      }
+    },
+    "执行计划": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Execution plan"
+          }
+        }
+      }
+    },
+    "执行设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Execution settings"
+          }
+        }
+      }
+    },
+    "找不到协作任务": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collaboration not found"
+          }
+        }
+      }
+    },
+    "拆分任务交给多个 Codex，在独立工作区执行，最后由主控汇总。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Split work among Codex agents in separate workspaces, then have the coordinator combine the results."
+          }
+        }
+      }
+    },
+    "拒绝": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deny"
+          }
+        }
+      }
+    },
+    "拒绝额外权限": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deny additional permissions"
+          }
+        }
+      }
+    },
+    "按服务器保存到本机钥匙串，下次新建会话生效。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved per server in this device's keychain. Used for new sessions."
+          }
+        }
+      }
+    },
+    "推理强度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reasoning effort"
+          }
+        }
+      }
+    },
+    "描述任务…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describe a task…"
+          }
+        }
+      }
+    },
+    "提交回答": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submit answers"
+          }
+        }
+      }
+    },
+    "提示词模板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prompt templates"
+          }
+        }
+      }
+    },
+    "搜索会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search sessions"
+          }
+        }
+      }
+    },
+    "搜索聊天": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search chats"
+          }
+        }
+      }
+    },
+    "播放速度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playback speed"
+          }
+        }
+      }
+    },
+    "收起": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse"
+          }
+        }
+      }
+    },
+    "断开连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect"
+          }
+        }
+      }
+    },
+    "新建会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New session"
+          }
+        }
+      }
+    },
+    "新建协作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New collaboration"
+          }
+        }
+      }
+    },
+    "新建终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New terminal"
+          }
+        }
+      }
+    },
+    "无法打开文件": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot open file"
+          }
+        }
+      }
+    },
+    "显示或隐藏侧栏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or hide sidebar"
+          }
+        }
+      }
+    },
+    "暂无归档聊天": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No archived chats"
+          }
+        }
+      }
+    },
+    "更换 Agent / 编辑启动配置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change Agent / edit launch settings"
+          }
+        }
+      }
+    },
+    "更新聊天后台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update chat backend"
+          }
+        }
+      }
+    },
+    "更早一页": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Older page"
+          }
+        }
+      }
+    },
+    "最多同时执行 %lld 个 Worker": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run up to %lld workers at a time"
+          }
+        }
+      }
+    },
+    "最近一次请求": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last request"
+          }
+        }
+      }
+    },
+    "最近一次请求 / 上下文上限 %@ token": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last request / context limit: %@ tokens"
+          }
+        }
+      }
+    },
+    "有一次新建会话的结果待确认，请先检查服务器会话。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A session creation needs confirmation. Check the server's session list first."
+          }
+        }
+      }
+    },
+    "服务器上的 CLI 需要单独安装和登录。你可以在 Agents 页面管理启动配置。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install and sign in to CLIs on the server separately. Manage launch settings on the Agents page."
+          }
+        }
+      }
+    },
+    "服务器上的绝对路径": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Absolute path on the server"
+          }
+        }
+      }
+    },
+    "服务器可能已经启动了 CLI。请先刷新并检查会话列表，清除后重新新建可能重复启动。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server may already have started the CLI. Refresh and check the session list before clearing this record to avoid duplicate sessions."
+          }
+        }
+      }
+    },
+    "服务器暂未提供额度窗口。 ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server has not provided rate-limit windows. "
+          }
+        }
+      }
+    },
+    "服务器终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server terminal"
+          }
+        }
+      }
+    },
+    "服务器维护": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server maintenance"
+          }
+        }
+      }
+    },
+    "服务器设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server settings"
+          }
+        }
+      }
+    },
+    "未安装": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not installed"
+          }
+        }
+      }
+    },
+    "未读回复": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unread replies"
+          }
+        }
+      }
+    },
+    "未连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected"
+          }
+        }
+      }
+    },
+    "权限": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissions"
+          }
+        }
+      }
+    },
+    "来自服务器当前登录的 Codex 账号。缺失值表示暂不可用，不代表额度为零。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From the Codex account currently signed in on the server. Missing data means unavailable, not zero remaining."
+          }
+        }
+      }
+    },
+    "查看完整内容（%lld 字符）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View full content (%lld characters)"
+          }
+        }
+      }
+    },
+    "查看待确认消息": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View pending message"
+          }
+        }
+      }
+    },
+    "查看方式": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View mode"
+          }
+        }
+      }
+    },
+    "模型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model"
+          }
+        }
+      }
+    },
+    "模型参数名": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model argument name"
+          }
+        }
+      }
+    },
+    "正在上传 %@ · %lld%%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uploading %@ · %lld%%"
+          }
+        }
+      }
+    },
+    "正在下载 · %lld%%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading · %lld%%"
+          }
+        }
+      }
+    },
+    "正在发送": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending"
+          }
+        }
+      }
+    },
+    "正在处理请求…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing request…"
+          }
+        }
+      }
+    },
+    "正在导入…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importing…"
+          }
+        }
+      }
+    },
+    "正在读取完整内容…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading full content…"
+          }
+        }
+      }
+    },
+    "正在读取文件…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading file…"
+          }
+        }
+      }
+    },
+    "正在读取服务器账号额度…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading server account limits…"
+          }
+        }
+      }
+    },
+    "正在读取附件…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading attachment…"
+          }
+        }
+      }
+    },
+    "此会话正在其他客户端运行，目前仅供查看。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This chat is active in another client and is currently read-only."
+          }
+        }
+      }
+    },
+    "此会话被其他 Codex 客户端占用。请退出另一端会话后重新检查。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another Codex client owns this chat. Close it there before checking again."
+          }
+        }
+      }
+    },
+    "每行 NAME=value，值无需加引号。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One NAME=value per line. Values need no quotes."
+          }
+        }
+      }
+    },
+    "汇总成果": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Combined result"
+          }
+        }
+      }
+    },
+    "沿用会话 / 默认模型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep session / default model"
+          }
+        }
+      }
+    },
+    "沿用工具默认值": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use the tool's default"
+          }
+        }
+      }
+    },
+    "添加 SSH 连接，开始你的第一个工作空间。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add an SSH connection to start your first workspace."
+          }
+        }
+      }
+    },
+    "添加 Worker 任务": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add worker task"
+          }
+        }
+      }
+    },
+    "添加服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add server"
+          }
+        }
+      }
+    },
+    "添加这个项目": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add this project"
+          }
+        }
+      }
+    },
+    "添加附件": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add attachment"
+          }
+        }
+      }
+    },
+    "添加项目": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add project"
+          }
+        }
+      }
+    },
+    "清屏": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear screen"
+          }
+        }
+      }
+    },
+    "清除待确认记录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear pending record"
+          }
+        }
+      }
+    },
+    "清除待确认输入": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear pending input"
+          }
+        }
+      }
+    },
+    "清除本机记录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear local record"
+          }
+        }
+      }
+    },
+    "清除这条消息的待确认记录？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the pending record for this message?"
+          }
+        }
+      }
+    },
+    "源码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source"
+          }
+        }
+      }
+    },
+    "点击“添加服务器”，填写名称、地址、用户名、端口和密码后保存。可选择将密码保存在本机钥匙串。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Add server, enter its name, address, username, port and password, then save. You can store the password in this device's keychain."
+          }
+        }
+      }
+    },
+    "点击服务器的“连接”按钮。首次连接时，请核对服务器的 SSH 主机指纹，再确认信任。连接成功后进入工作区。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the server's Connect button. On the first connection, compare the SSH host fingerprint before trusting it. A successful connection opens the workspace."
+          }
+        }
+      }
+    },
+    "点终端可直接输入。登录、模型选择与审批按各 CLI 的提示操作。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the terminal to type. Follow each CLI's instructions for login, models and approvals."
+          }
+        }
+      }
+    },
+    "状态": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
+    "环境变量": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment variables"
+          }
+        }
+      }
+    },
+    "环境变量 · 已设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment variables · configured"
+          }
+        }
+      }
+    },
+    "用户名": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Username"
+          }
+        }
+      }
+    },
+    "用量与额度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage and limits"
+          }
+        }
+      }
+    },
+    "界面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interface"
+          }
+        }
+      }
+    },
+    "界面皮肤": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interface style"
+          }
+        }
+      }
+    },
+    "留言会保存在成员收件箱，不会自动打断正在执行的任务。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes are saved to the member's inbox and do not interrupt running tasks."
+          }
+        }
+      }
+    },
+    "留言内容": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note"
+          }
+        }
+      }
+    },
+    "登录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log in"
+          }
+        }
+      }
+    },
+    "登录命令": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login command"
+          }
+        }
+      }
+    },
+    "登录终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login terminal"
+          }
+        }
+      }
+    },
+    "直接导入 GIF / APNG，或用下面的模板生成 2×2 四帧图。四帧图会按左上、右上、左下、右下自动拆分，无需自己制作 GIF。建议保持相同背景和固定镜头。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import GIF / APNG directly, or use the template below to create a 2×2 four-frame image. Frames are split in reading order automatically. Use a consistent background and fixed camera."
+          }
+        }
+      }
+    },
+    "直接输入目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter directory path"
+          }
+        }
+      }
+    },
+    "确认并重试": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm and retry"
+          }
+        }
+      }
+    },
+    "确认服务器身份": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify server identity"
+          }
+        }
+      }
+    },
+    "移除主机指纹": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove host fingerprint"
+          }
+        }
+      }
+    },
+    "移除任务": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove task"
+          }
+        }
+      }
+    },
+    "移除当前地址的主机指纹": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove this address's host fingerprint"
+          }
+        }
+      }
+    },
+    "移除当前服务器的主机指纹？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove this server's host fingerprint?"
+          }
+        }
+      }
+    },
+    "移除附件 %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove attachment %@"
+          }
+        }
+      }
+    },
+    "第 %lld 页": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page %lld"
+          }
+        }
+      }
+    },
+    "管理 Agents →": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Agents →"
+          }
+        }
+      }
+    },
+    "管理服务器连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage server connections"
+          }
+        }
+      }
+    },
+    "系统开启“减少动态效果”或应用进入后台时，动作会停止播放。可随时恢复默认。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Animation pauses when Reduce Motion is enabled or the app enters the background. You can restore defaults anytime."
+          }
+        }
+      }
+    },
+    "累计 token": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total tokens"
+          }
+        }
+      }
+    },
+    "终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal"
+          }
+        }
+      }
+    },
+    "结束 CLI": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End CLI"
+          }
+        }
+      }
+    },
+    "结束终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End terminal"
+          }
+        }
+      }
+    },
+    "继续": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        }
+      }
+    },
+    "缓存已计入输入，推理已计入输出，不重复相加。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cached tokens are included in input and reasoning tokens in output. They are not counted twice."
+          }
+        }
+      }
+    },
+    "编程工具": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coding tools"
+          }
+        }
+      }
+    },
+    "编辑连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit connection"
+          }
+        }
+      }
+    },
+    "网络与后台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network and backend"
+          }
+        }
+      }
+    },
+    "网络代理": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network proxy"
+          }
+        }
+      }
+    },
+    "置顶": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pin"
+          }
+        }
+      }
+    },
+    "聊天": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat"
+          }
+        }
+      }
+    },
+    "聊天名称": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat name"
+          }
+        }
+      }
+    },
+    "自定义内容保存在本机，不更换桌面图标。聊天头像需选择“角色主题”。只导入头像时保持静态；只导入动作时用第一帧作为头像。动作仍只出现在最新回复，左上角不显示 Logo。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom assets stay on this device and do not change the app icon. Choose Character theme for chat avatars. An avatar alone is static; animation alone uses its first frame as the avatar. Only the latest reply animates."
+          }
+        }
+      }
+    },
+    "角色主题会同步调整背景和气泡；经典工作台调整强调色。切换后立即生效。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Character theme changes backgrounds and bubbles; Classic workspace changes accent colors. Changes apply immediately."
+          }
+        }
+      }
+    },
+    "角色制作引导": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Character creation guide"
+          }
+        }
+      }
+    },
+    "记住密码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remember password"
+          }
+        }
+      }
+    },
+    "记住这台服务器的密码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remember this server's password"
+          }
+        }
+      }
+    },
+    "设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        }
+      }
+    },
+    "语言": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language"
+          }
+        }
+      }
+    },
+    "语言与外观": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language and appearance"
+          }
+        }
+      }
+    },
+    "请刷新后台以使用已保存的配置。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh the backend to use saved settings."
+          }
+        }
+      }
+    },
+    "读取历史…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading history…"
+          }
+        }
+      }
+    },
+    "读取差异…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading diff…"
+          }
+        }
+      }
+    },
+    "负责范围、执行要求和验收标准": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scope, execution requirements and acceptance criteria"
+          }
+        }
+      }
+    },
+    "账号": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
+          }
+        }
+      }
+    },
+    "账号额度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account limits"
+          }
+        }
+      }
+    },
+    "较新一页": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Newer page"
+          }
+        }
+      }
+    },
+    "输入": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input"
+          }
+        }
+      }
+    },
+    "输入回执待确认": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input acknowledgement pending"
+          }
+        }
+      }
+    },
+    "输入回答": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter answer"
+          }
+        }
+      }
+    },
+    "输入密码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter password"
+          }
+        }
+      }
+    },
+    "输入并回车": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type and press Return"
+          }
+        }
+      }
+    },
+    "输入提示词或回复…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a prompt or reply…"
+          }
+        }
+      }
+    },
+    "输出": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output"
+          }
+        }
+      }
+    },
+    "返回上级目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parent directory"
+          }
+        }
+      }
+    },
+    "返回工作区": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to workspace"
+          }
+        }
+      }
+    },
+    "还没有服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No servers yet"
+          }
+        }
+      }
+    },
+    "这不会停止服务器上的任务。请先检查会话，避免重复执行。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This does not stop tasks on the server. Check the chat first to avoid running work twice."
+          }
+        }
+      }
+    },
+    "这不会撤销已执行的服务器操作。重新创建可能启动另一组任务。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This does not undo completed server operations. Creating again may start another task group."
+          }
+        }
+      }
+    },
+    "这组任务要完成什么？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What should this task group accomplish?"
+          }
+        }
+      }
+    },
+    "连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect"
+          }
+        }
+      }
+    },
+    "连接中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting"
+          }
+        }
+      }
+    },
+    "连接后自动读取服务器历史。在侧栏选择已有对话，或添加项目新建会话。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server history loads after connecting. Choose an existing chat in the sidebar or add a project to start one."
+          }
+        }
+      }
+    },
+    "连接开发环境，继续工作。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to your development environment and continue working."
+          }
+        }
+      }
+    },
+    "选择 Agent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Agent"
+          }
+        }
+      }
+    },
+    "选择 Agent 新建会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Agent for a new session"
+          }
+        }
+      }
+    },
+    "选择服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose server"
+          }
+        }
+      }
+    },
+    "选择清晰的正方形图片；也可以复制下面的模板，附上角色参考图交给绘图工具。头像建议 PNG / JPEG，透明背景也可以。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a clear square image, or use the template with a reference image in a drawing tool. PNG and JPEG are recommended; transparent backgrounds work too."
+          }
+        }
+      }
+    },
+    "选择项目": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose project"
+          }
+        }
+      }
+    },
+    "配置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure"
+          }
+        }
+      }
+    },
+    "配色": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colors"
+          }
+        }
+      }
+    },
+    "配色与自定义头像": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colors and custom avatar"
+          }
+        }
+      }
+    },
+    "配色与角色": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colors and character"
+          }
+        }
+      }
+    },
+    "重启后台并应用代理": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart backend and apply proxy"
+          }
+        }
+      }
+    },
+    "重启后台并应用代理设置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart backend and apply proxy settings"
+          }
+        }
+      }
+    },
+    "重启后台？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart backend?"
+          }
+        }
+      }
+    },
+    "重命名": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename"
+          }
+        }
+      }
+    },
+    "重命名聊天": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename chat"
+          }
+        }
+      }
+    },
+    "重新下载": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download again"
+          }
+        }
+      }
+    },
+    "重新准备 / 应用更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepare / apply update"
+          }
+        }
+      }
+    },
+    "重新准备后台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepare backend again"
+          }
+        }
+      }
+    },
+    "重新检查": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check again"
+          }
+        }
+      }
+    },
+    "重新检测可用 Agent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detect available Agents again"
+          }
+        }
+      }
+    },
+    "重置时间": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resets"
+          }
+        }
+      }
+    },
+    "重试": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        }
+      }
+    },
+    "重试原操作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry original operation"
+          }
+        }
+      }
+    },
+    "重试原新建请求": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry original creation"
+          }
+        }
+      }
+    },
+    "重试原输入": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry original input"
+          }
+        }
+      }
+    },
+    "重试读取": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry loading"
+          }
+        }
+      }
+    },
+    "重试这个成员": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry this member"
+          }
+        }
+      }
+    },
+    "阅读": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read"
+          }
+        }
+      }
+    },
+    "需要你的回答": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your answer is needed"
+          }
+        }
+      }
+    },
+    "需要你的审批": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your approval is needed"
+          }
+        }
+      }
+    },
+    "静态头像": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Static avatar"
+          }
+        }
+      }
+    },
+    "项目": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projects"
+          }
+        }
+      }
+    },
+    "项目与目标": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project and goal"
+          }
+        }
+      }
+    },
+    "项目分支": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project branch"
+          }
+        }
+      }
+    },
+    "项目目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project directory"
+          }
+        }
+      }
+    },
+    "项目说明.md": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project notes.md"
+          }
+        }
+      }
+    },
+    "项目需要已有 Git 提交且没有未提交改动。各 Worker 独立执行，全部结束后主控会审阅并整合。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The project needs an existing Git commit and a clean working tree. Workers run independently; the coordinator reviews and combines their results afterward."
+          }
+        }
+      }
+    },
+    "预览附件 %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview attachment %@"
+          }
+        }
+      }
+    },
+    "额度更新时间": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limits last updated"
+          }
+        }
+      }
+    },
+    "高级与说明": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Advanced and help"
+          }
+        }
+      }
+    },
+    "默认只允许当前 SSH 用户的 Home 目录及其子目录。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the SSH user's home directory and its subdirectories are allowed by default."
+          }
+        }
+      }
+    },
+    "默认推理强度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default effort"
+          }
+        }
+      }
+    },
+    "默认模型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default model"
+          }
+        }
+      }
+    },
+    " 新建会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " New session"
+          }
+        }
+      }
+    },
+    " 配置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " settings"
+          }
+        }
+      }
+    },
+    "App 缺少后台脚本资源，请重新构建工程。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backend scripts are missing from the app. Rebuild the project."
+          }
+        }
+      }
+    },
+    "CLI 中运行 · 仅查看": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active in CLI · Read-only"
+          }
+        }
+      }
+    },
+    "Codex 后台已退出，请检查服务器后台日志。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The backend exited. Check the server's backend log."
+          }
+        }
+      }
+    },
+    "Markdown 文件较大，已切换到系统预览。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Markdown file is large. Opened in the system preview."
+          }
+        }
+      }
+    },
+    "SSH 已断开": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH disconnected"
+          }
+        }
+      }
+    },
+    "SSH 已断开，请重新连接。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH disconnected. Reconnect to continue."
+          }
+        }
+      }
+    },
+    "SSH 已断开，请重新连接服务器。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH disconnected. Reconnect to the server."
+          }
+        }
+      }
+    },
+    "SSH 已断开，重新连接后可继续读取终端。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH disconnected. Reconnect to continue reading the terminal."
+          }
+        }
+      }
+    },
+    "SSH 用户名": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH username"
+          }
+        }
+      }
+    },
+    "SSH 认证失败，请检查用户名和密码。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH authentication failed. Check the username and password."
+          }
+        }
+      }
+    },
+    "上一条消息的结果仍待确认，请在对应消息中点击重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous message still needs confirmation. Retry from that message."
+          }
+        }
+      }
+    },
+    "下载中断，文件内容不完整。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download interrupted. The file is incomplete."
+          }
+        }
+      }
+    },
+    "不能包含换行或控制字符，且不能过长。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Must not contain newlines or control characters, or exceed the length limit."
+          }
+        }
+      }
+    },
+    "中 (medium)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medium (medium)"
+          }
+        }
+      }
+    },
+    "代理必须是 http:// 或 https:// 地址，第一版不支持带账号密码的代理。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The proxy must use http:// or https://. Proxies requiring a username and password are not supported yet."
+          }
+        }
+      }
+    },
+    "代码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code"
+          }
+        }
+      }
+    },
+    "任务 1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task 1"
+          }
+        }
+      }
+    },
+    "任务 2": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task 2"
+          }
+        }
+      }
+    },
+    "任务遇到问题": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Task failed"
+          }
+        }
+      }
+    },
+    "会话已创建，但尚未读取到会话详情。请刷新列表确认，不要重复新建。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session was created, but its details could not be loaded. Refresh the list to check it; do not create it again."
+          }
+        }
+      }
+    },
+    "低 (low)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low (low)"
+          }
+        }
+      }
+    },
+    "你": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You"
+          }
+        }
+      }
+    },
+    "使用 ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use "
+          }
+        }
+      }
+    },
+    "保存成果中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving results"
+          }
+        }
+      }
+    },
+    "其他客户端占用 · 仅查看": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Owned by another client · Read-only"
+          }
+        }
+      }
+    },
+    "准备好开始工作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to start"
+          }
+        }
+      }
+    },
+    "动图最多支持 48 帧，请先精简帧数。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Animations support up to 48 frames. Reduce the frame count first."
+          }
+        }
+      }
+    },
+    "协作后台未就绪，请连接并准备工作区。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collaboration backend is not ready. Connect and prepare the workspace."
+          }
+        }
+      }
+    },
+    "单个下载文件不能超过 100 MB。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A download cannot exceed 100 MB."
+          }
+        }
+      }
+    },
+    "发送中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending"
+          }
+        }
+      }
+    },
+    "另一个目录的新建结果待确认，请先重试原新建请求。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A creation request for another directory needs confirmation. Retry that original request first."
+          }
+        }
+      }
+    },
+    "另一会话有待确认的发送，请先切回该会话处理。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another chat has a pending message. Switch back to it first."
+          }
+        }
+      }
+    },
+    "另一条消息的结果仍待确认，请先在对应消息中处理。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another message still needs confirmation. Handle it from that message first."
+          }
+        }
+      }
+    },
+    "可执行文件": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Executable"
+          }
+        }
+      }
+    },
+    "后台协议不匹配或工作区未就绪。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backend protocol mismatch or workspace not ready."
+          }
+        }
+      }
+    },
+    "后台更新待完成；请先处理运行中或待审批的任务，再重新准备工作区。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backend update pending. Finish running or pending tasks, then prepare the workspace again."
+          }
+        }
+      }
+    },
+    "后台请求失败。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backend request failed."
+          }
+        }
+      }
+    },
+    "后台返回格式不正确，请检查服务器 shell 启动脚本是否输出了额外内容。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid backend response. Check whether the server's shell startup scripts print extra output."
+          }
+        }
+      }
+    },
+    "启动登录终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch login terminal"
+          }
+        }
+      }
+    },
+    "四帧图需为正方形 2×2 排列，边长至少 128 像素且为偶数。也可以直接导入 GIF / APNG。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A four-frame image must be a square 2×2 grid, at least 128 pixels wide with even dimensions. GIF and APNG can also be imported directly."
+          }
+        }
+      }
+    },
+    "回答完成": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply complete"
+          }
+        }
+      }
+    },
+    "图片不能超过 16 MB。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Images cannot exceed 16 MB."
+          }
+        }
+      }
+    },
+    "图片帧无法解码。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot decode an animation frame."
+          }
+        }
+      }
+    },
+    "填写新服务器后保存，再点击卡片连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save the new server, then use its Connect button"
+          }
+        }
+      }
+    },
+    "复制四帧动作模板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy four-frame animation template"
+          }
+        }
+      }
+    },
+    "复制头像模板": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy avatar template"
+          }
+        }
+      }
+    },
+    "尚未启动": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not started"
+          }
+        }
+      }
+    },
+    "尚未连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not connected"
+          }
+        }
+      }
+    },
+    "就绪": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready"
+          }
+        }
+      }
+    },
+    "工作区未就绪": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace not ready"
+          }
+        }
+      }
+    },
+    "已中断": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrupted"
+          }
+        }
+      }
+    },
+    "已停止": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped"
+          }
+        }
+      }
+    },
+    "已删除服务器及保存的密码": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server and saved password deleted"
+          }
+        }
+      }
+    },
+    "已取消": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelled"
+          }
+        }
+      }
+    },
+    "已取消连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection cancelled"
+          }
+        }
+      }
+    },
+    "已完成": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed"
+          }
+        }
+      }
+    },
+    "已应用到项目 · ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applied to project · "
+          }
+        }
+      }
+    },
+    "已执行 · ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Executed · "
+          }
+        }
+      }
+    },
+    "已断开": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected"
+          }
+        }
+      }
+    },
+    "已移除该地址的主机指纹，下次连接需重新确认": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Host fingerprint removed. Verify the server on the next connection"
+          }
+        }
+      }
+    },
+    "已读取服务器 Codex 历史，按项目分组。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loaded server Codex history, grouped by project."
+          }
+        }
+      }
+    },
+    "开发服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Development server"
+          }
+        }
+      }
+    },
+    "当前任务仍在运行，请等待完成或停止后再发送。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This task is still running. Wait for it to finish or stop it before sending."
+          }
+        }
+      }
+    },
+    "当前后台尚未支持 Full Access。请完成现有任务后，点击“重新准备 / 应用后台更新”。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This backend does not support Full Access yet. Finish existing tasks, then prepare and update the workspace."
+          }
+        }
+      }
+    },
+    "当前后台需要更新，请在设置中重新准备工作区。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This backend needs an update. Prepare the workspace again in Settings."
+          }
+        }
+      }
+    },
+    "待发送输入过多，请等待发送完成。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too much pending input. Wait for it to be sent."
+          }
+        }
+      }
+    },
+    "待确认": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs confirmation"
+          }
+        }
+      }
+    },
+    "待确认的新建记录格式不正确。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid pending session creation record."
+          }
+        }
+      }
+    },
+    "执行中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        }
+      }
+    },
+    "执行失败": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed"
+          }
+        }
+      }
+    },
+    "执行操作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Execute action"
+          }
+        }
+      }
+    },
+    "找不到这条消息的重试记录，请刷新会话确认状态。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No retry record was found for this message. Refresh the chat to check its status."
+          }
+        }
+      }
+    },
+    "排队中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Queued"
+          }
+        }
+      }
+    },
+    "提示词过长，请分段输入。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The prompt is too long. Split it into smaller messages."
+          }
+        }
+      }
+    },
+    "搜索网页": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search the web"
+          }
+        }
+      }
+    },
+    "文件在下载时发生变化，请重新打开。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file changed during download. Open it again."
+          }
+        }
+      }
+    },
+    "无效文件名。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid filename."
+          }
+        }
+      }
+    },
+    "无效的后台请求。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid backend request."
+          }
+        }
+      }
+    },
+    "无法保存图片，请重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot save the image. Try again."
+          }
+        }
+      }
+    },
+    "无法拆分四帧图。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot split the four-frame image."
+          }
+        }
+      }
+    },
+    "无法识别文本编码，已切换到系统预览。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown text encoding. Opened in the system preview."
+          }
+        }
+      }
+    },
+    "无法读取图片，请从文件或照片中选择。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot read the image. Choose one from Files or Photos."
+          }
+        }
+      }
+    },
+    "无法读取图片，请选择 PNG、JPEG、GIF 或 APNG。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot read the image. Choose PNG, JPEG, GIF or APNG."
+          }
+        }
+      }
+    },
+    "无法读取所选照片。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot read the selected photo."
+          }
+        }
+      }
+    },
+    "无法读取拖入的文件。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot read the dropped file."
+          }
+        }
+      }
+    },
+    "无法读取服务器主机公钥。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot read the server's host public key."
+          }
+        }
+      }
+    },
+    "无法读取照片。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot read the photo."
+          }
+        }
+      }
+    },
+    "暂不支持上传文件夹，请选择文件。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder uploads are not supported. Choose a file."
+          }
+        }
+      }
+    },
+    "更新文件": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update file"
+          }
+        }
+      }
+    },
+    "最高 (max)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum (max)"
+          }
+        }
+      }
+    },
+    "服务器名称": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server name"
+          }
+        }
+      }
+    },
+    "服务器地址": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server address"
+          }
+        }
+      }
+    },
+    "服务器已切换，请重新添加附件。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server changed. Add the attachment again."
+          }
+        }
+      }
+    },
+    "服务器指纹尚未确认或已经改变。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server fingerprint is unverified or has changed."
+          }
+        }
+      }
+    },
+    "服务器未启用密码登录。第一版仅支持 SSH 密码认证，不支持私钥或交互式认证。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server does not allow password login. Only SSH password authentication is currently supported."
+          }
+        }
+      }
+    },
+    "服务器没有返回上传路径。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server did not return an upload path."
+          }
+        }
+      }
+    },
+    "服务器没有返回新会话 ID。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server did not return a session ID."
+          }
+        }
+      }
+    },
+    "服务器的 Codex 尚未登录，请先在服务器完成 codex login。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex is not signed in on the server. Run codex login there first."
+          }
+        }
+      }
+    },
+    "服务器设置已保存": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server settings saved"
+          }
+        }
+      }
+    },
+    "服务器返回了无效数据。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server returned invalid data."
+          }
+        }
+      }
+    },
+    "服务器返回重复的历史分页游标，请重新同步。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server returned a duplicate history cursor. Sync again."
+          }
+        }
+      }
+    },
+    "服务器连接已切换，请在当前服务器重新操作。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server connection changed. Try again on the current server."
+          }
+        }
+      }
+    },
+    "服务器默认": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server default"
+          }
+        }
+      }
+    },
+    "未送达": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not delivered"
+          }
+        }
+      }
+    },
+    "本机待确认输入格式不正确。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid pending terminal input."
+          }
+        }
+      }
+    },
+    "查看命令": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View command"
+          }
+        }
+      }
+    },
+    "检查服务器连接状态": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check server connection"
+          }
+        }
+      }
+    },
+    "樱粉": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rose"
+          }
+        }
+      }
+    },
+    "正在停止": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopping"
+          }
+        }
+      }
+    },
+    "正在准备服务器工作区…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing server workspace…"
+          }
+        }
+      }
+    },
+    "正在发送任务": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending task"
+          }
+        }
+      }
+    },
+    "正在回复": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replying"
+          }
+        }
+      }
+    },
+    "正在思考": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thinking"
+          }
+        }
+      }
+    },
+    "正在打开终端…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening terminal…"
+          }
+        }
+      }
+    },
+    "正在执行 · ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running · "
+          }
+        }
+      }
+    },
+    "正在执行操作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Executing an action"
+          }
+        }
+      }
+    },
+    "正在确认发送结果": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking message delivery"
+          }
+        }
+      }
+    },
+    "此会话被其他客户端占用，请退出另一端会话后重新检查。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another client owns this chat. Close it there, then check again."
+          }
+        }
+      }
+    },
+    "每次最多添加 8 个附件。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add up to 8 attachments per message."
+          }
+        }
+      }
+    },
+    "每次最多添加 8 个附件，请减少选择的文件数量。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add up to 8 attachments per message. Select fewer files."
+          }
+        }
+      }
+    },
+    "没有代码改动": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No code changes"
+          }
+        }
+      }
+    },
+    "浅色": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Light"
+          }
+        }
+      }
+    },
+    "海蓝": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocean"
+          }
+        }
+      }
+    },
+    "深色": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dark"
+          }
+        }
+      }
+    },
+    "环境变量名称不正确：": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid environment variable name: "
+          }
+        }
+      }
+    },
+    "环境变量最多 64 项。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to 64 environment variables are allowed."
+          }
+        }
+      }
+    },
+    "环境变量请按每行 NAME=value 填写。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use one NAME=value per line for environment variables."
+          }
+        }
+      }
+    },
+    "环境变量重复：": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate environment variable: "
+          }
+        }
+      }
+    },
+    "琥珀": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Amber"
+          }
+        }
+      }
+    },
+    "界面预览 · 示例数据": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interface preview · Sample data"
+          }
+        }
+      }
+    },
+    "登录成功，正在读取系统信息…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in. Reading system information…"
+          }
+        }
+      }
+    },
+    "石墨": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Graphite"
+          }
+        }
+      }
+    },
+    "端口": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port"
+          }
+        }
+      }
+    },
+    "端口必须是 1～65535 之间的整数。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The port must be an integer from 1 to 65535."
+          }
+        }
+      }
+    },
+    "等待你处理": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for you"
+          }
+        }
+      }
+    },
+    "等待你的确认": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for confirmation"
+          }
+        }
+      }
+    },
+    "等待审批或回答": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for approval or answers"
+          }
+        }
+      }
+    },
+    "等待确认服务器身份": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting to verify server identity"
+          }
+        }
+      }
+    },
+    "等待网络恢复后自动重连…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the network to reconnect…"
+          }
+        }
+      }
+    },
+    "简体中文": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "简体中文"
+          }
+        }
+      }
+    },
+    "管理 ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage "
+          }
+        }
+      }
+    },
+    "紫藤": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wisteria"
+          }
+        }
+      }
+    },
+    "终端 · ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal · "
+          }
+        }
+      }
+    },
+    "终端已结束": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal ended"
+          }
+        }
+      }
+    },
+    "终端输入回执不正确，请核实终端状态。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid terminal input acknowledgement. Check the terminal's state."
+          }
+        }
+      }
+    },
+    "终端连接失败": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal connection failed"
+          }
+        }
+      }
+    },
+    "经典工作台": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Classic workspace"
+          }
+        }
+      }
+    },
+    "结果待确认": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Result unconfirmed"
+          }
+        }
+      }
+    },
+    "给 Codex 一个任务": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Codex a task"
+          }
+        }
+      }
+    },
+    "自定义 CLI": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom CLI"
+          }
+        }
+      }
+    },
+    "自己的启动命令": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your own launch command"
+          }
+        }
+      }
+    },
+    "角色主题": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Character theme"
+          }
+        }
+      }
+    },
+    "请先完成上一项上传或发送。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish the previous upload or send first."
+          }
+        }
+      }
+    },
+    "请先更新服务器后台。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update the server backend first."
+          }
+        }
+      }
+    },
+    "请先确认待发送消息的结果，再归档。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm pending message delivery before archiving."
+          }
+        }
+      }
+    },
+    "请先连接并准备支持附件的工作区。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect and prepare a workspace that supports attachments first."
+          }
+        }
+      }
+    },
+    "请先连接服务器并准备工作区。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to the server and prepare the workspace first."
+          }
+        }
+      }
+    },
+    "请先选择一个会话。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a session first."
+          }
+        }
+      }
+    },
+    "请先重新准备工作区以应用 Agent 配置功能。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepare the workspace again to apply Agent configuration support."
+          }
+        }
+      }
+    },
+    "请手动连接并确认服务器身份。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect manually and verify the server identity."
+          }
+        }
+      }
+    },
+    "请更新服务器后台以读取 Claude 具体型号和推理强度。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update the server backend to load Claude model versions and effort levels."
+          }
+        }
+      }
+    },
+    "请等待当前操作完成，或检查附件数量。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait for the current operation or check the attachment count."
+          }
+        }
+      }
+    },
+    "请等待当前操作或附件上传完成。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait for the current operation or attachment upload."
+          }
+        }
+      }
+    },
+    "请输入 IP 或主机名，不要带 ssh://、端口或路径。IPv6 地址不加方括号。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter an IP address or hostname without ssh://, a port or a path. Do not bracket IPv6 addresses."
+          }
+        }
+      }
+    },
+    "请输入 SSH 密码。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the SSH password."
+          }
+        }
+      }
+    },
+    "请输入 SSH 用户名。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the SSH username."
+          }
+        }
+      }
+    },
+    "请重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please try again."
+          }
+        }
+      }
+    },
+    "读取服务器信息超时或连接已断开，请重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading server information timed out or disconnected. Try again."
+          }
+        }
+      }
+    },
+    "调用工具": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Call tool"
+          }
+        }
+      }
+    },
+    "超高 (xhigh)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra high (xhigh)"
+          }
+        }
+      }
+    },
+    "跟随系统": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow system"
+          }
+        }
+      }
+    },
+    "运行中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        }
+      }
+    },
+    "运行命令": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run command"
+          }
+        }
+      }
+    },
+    "还有另一种 Agent 或模式的新建请求待确认。请先处理原请求，不会改用它创建当前会话。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A pending creation uses another Agent or mode. Handle the original request first; it will not replace this session."
+          }
+        }
+      }
+    },
+    "这个会话正在 CLI 中运行，请在 CLI 完成任务并刷新后再发送。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This chat is active in the CLI. Wait for it to finish, then refresh before sending."
+          }
+        }
+      }
+    },
+    "远程命令行终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote command-line terminal"
+          }
+        }
+      }
+    },
+    "连接中断，将自动重试…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection interrupted. Retrying…"
+          }
+        }
+      }
+    },
+    "连接后准备工作区": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepare the workspace after connecting"
+          }
+        }
+      }
+    },
+    "连接失败": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection failed"
+          }
+        }
+      }
+    },
+    "连接已失效，正在自动重连…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection expired. Reconnecting…"
+          }
+        }
+      }
+    },
+    "连接已断开": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection lost"
+          }
+        }
+      }
+    },
+    "连接已断开，服务器上的任务继续执行；重新连接后准备工作区即可恢复。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected. Server tasks continue running. Reconnect and prepare the workspace to resume."
+          }
+        }
+      }
+    },
+    "连接已断开，等待自动重连…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected. Waiting to reconnect…"
+          }
+        }
+      }
+    },
+    "连接已断开，请重新连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected. Reconnect to continue"
+          }
+        }
+      }
+    },
+    "连接或工作区尚未就绪，请重新连接并准备工作区。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection or workspace not ready. Reconnect and prepare the workspace."
+          }
+        }
+      }
+    },
+    "问题": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Question"
+          }
+        }
+      }
+    },
+    "附件": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachment"
+          }
+        }
+      }
+    },
+    "附件上传失败：": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachment upload failed: "
+          }
+        }
+      }
+    },
+    "附件不能为空，单个附件不能超过 20 MB。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachments must not be empty or exceed 20 MB."
+          }
+        }
+      }
+    },
+    "青竹": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jade"
+          }
+        }
+      }
+    },
+    "额度窗口": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rate-limit window"
+          }
+        }
+      }
+    },
+    "高 (high)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "High (high)"
+          }
+        }
+      }
+    },
+    "默认权限": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default permissions"
+          }
+        }
+      }
+    },
+    "，已选择": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ", selected"
+          }
+        }
+      }
+    },
+    "使用 %@ 新建会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New %@ session"
+          }
+        }
+      }
+    },
+    "%@ 配置": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ settings"
+          }
+        }
+      }
+    },
+    "管理 %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage %@"
+          }
+        }
+      }
+    },
+    "正在执行 · %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running · %@"
+          }
+        }
+      }
+    },
+    "已执行 · %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Executed · %@"
+          }
+        }
+      }
+    },
+    "已应用到项目 · %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applied to project · %@"
+          }
+        }
+      }
+    },
+    "终端 · %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal · %@"
+          }
+        }
+      }
+    },
+    "附件上传失败：%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachment upload failed: %@"
+          }
+        }
+      }
+    },
+    "Code Pax，%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code Pax, %@"
+          }
+        }
+      }
+    },
+    "Claude，%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude, %@"
+          }
+        }
+      }
+    },
+    "已选择 %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected %@"
+          }
+        }
+      }
+    },
+    "正在自动重连 %@…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting to %@…"
+          }
+        }
+      }
+    },
+    "正在连接 %@…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to %@…"
+          }
+        }
+      }
+    },
+    "已连接 · %@@%@:%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected · %@@%@:%@"
+          }
+        }
+      }
+    },
+    "工作区已就绪 · %@ 种 CLI 可用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace ready · %@ CLIs available"
+          }
+        }
+      }
+    },
+    "Codex 已就绪 · 服务器已有登录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex ready · Signed in on server"
+          }
+        }
+      }
+    },
+    "Codex 已就绪 · Codex 尚未登录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex ready · Not signed in"
+          }
+        }
+      }
+    },
+    "%@ 条命令": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ commands"
+          }
+        }
+      }
+    },
+    "%@ 次文件更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ file updates"
+          }
+        }
+      }
+    },
+    "%@ 项工具操作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ tool actions"
+          }
+        }
+      }
+    },
+    "%@ 天额度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@-day limit"
+          }
+        }
+      }
+    },
+    "%@ 小时额度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@-hour limit"
+          }
+        }
+      }
+    },
+    "%@ 分钟额度": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@-minute limit"
+          }
+        }
+      }
+    },
+    "服务器已有登录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in on server"
+          }
+        }
+      }
+    },
+    "Codex 尚未登录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex not signed in"
+          }
+        }
+      }
+    },
+    " · %@ 个 Worker · 并行上限 %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · %@ workers · concurrency limit %@"
+          }
+        }
+      }
+    },
+    " · 第 %@ 次执行": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · attempt %@"
+          }
+        }
+      }
+    },
+    "网络已连接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network connected"
+          }
+        }
+      }
+    },
+    "SSH 工作空间": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH workspace"
+          }
+        }
+      }
+    },
+    "请根据我上传的参考图制作一个应用内角色头像。\n角色描述：[填写外貌、服饰、耳麦等特征]\n画风：[填写喜欢的画风]\n背景：[纯色或透明背景]\n输出一张 1:1 正方形图片，建议 1024×1024。脸部和上半身清晰，主体居中，头部占画面约 75%，保留头饰与耳麦的完整轮廓，四周留少量安全边距。小尺寸下也能辨认表情。保持参考角色身份，不添加文字、水印、边框或光效。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create an in-app character avatar from the reference image I uploaded.\nCharacter: [describe appearance, outfit, headset and other details]\nStyle: [preferred art style]\nBackground: [solid color or transparent]\nOutput one square 1:1 image, preferably 1024×1024. Show the face and upper body clearly, centered, with the head filling about 75% of the image. Preserve the full silhouette of the headwear and headset, with a small margin around the subject. Expressions must remain readable at small sizes. Preserve the reference character's identity. Do not add text, watermarks, borders or lighting effects."
+          }
+        }
+      }
+    },
+    "请以我上传的头像为唯一角色参考，制作一张用于循环思考动画的四帧动作图。\n输出一张 1:1 正方形图片，建议 1536×1536，严格按 2 列×2 行排成四个等大的正方形画面。没有外边距、格间距、分隔线、编号或文字。\n保持四帧中角色身份、画风、脸部比例、发色、头饰、服装、耳麦、背景和光照一致，镜头与头部位置、大小固定。\n阅读顺序为左上→右上→左下→右下：\n1. 眼睛睁开，视线略向上，手抬向下巴。\n2. 手指轻轻托住下巴，露出思索表情。\n3. 保持托腮姿势，轻轻闭眼眨眼。\n4. 睁眼，手开始放下，动作自然回到第一帧。\n动作与表情变化应在小头像里清晰可见。不要整体漂浮、旋转、缩放，不加光环、粒子或思考气泡，不改变角色造型。每帧内保留完整头饰与动作手部，背景与头像一致。[替换上面的动作描述也可以制作自己的循环动作。]": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use my uploaded avatar as the only character reference to create a four-frame image for a looping thinking animation.\nOutput one square 1:1 image, preferably 1536×1536, divided into a strict 2×2 grid of equal square frames. No margins, gaps, separators, numbers or text.\nKeep identity, art style, facial proportions, hair, accessories, outfit, headset, background and lighting consistent. Keep the camera and head position and scale fixed.\nRead the frames from top left to top right, then bottom left to bottom right:\n1. Eyes open, looking slightly upward, hand lifting toward the chin.\n2. Fingers lightly supporting the chin, with a thoughtful expression.\n3. Keep the hand at the chin and close the eyes for a brief blink.\n4. Open the eyes and begin lowering the hand, returning naturally to frame one.\nMake pose changes readable in a small avatar. No overall floating, rotation or scaling; no halos, particles or thought bubbles; no character redesign. Keep all headwear and the acting hand visible in every frame. Match the avatar background. [Replace the pose descriptions to create your own animation loop.]"
+          }
+        }
+      }
+    },
+    "1 条命令": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 command"
+          }
+        }
+      }
+    },
+    "1 次文件更新": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 file update"
+          }
+        }
+      }
+    },
+    "1 项工具操作": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 tool action"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

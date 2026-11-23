@@ -278,6 +278,16 @@ struct ConversationEntry: Identifiable {
         if other > 0 { parts.append("\(other) 项工具操作") }
         return (isRunning ? "正在执行 · " : "已执行 · ") + parts.joined(separator: " · ")
     }
+    func localizedSummary(locale: Locale) -> String {
+        let commands = messages.filter { $0.kind == "commandExecution" }.count
+        let files = messages.filter { $0.kind == "fileChange" }.count
+        let other = activityMessages.count - commands - files
+        var parts: [String] = []
+        if commands > 0 { parts.append(L10n.text("\(commands) 条命令", locale: locale)) }
+        if files > 0 { parts.append(L10n.text("\(files) 次文件更新", locale: locale)) }
+        if other > 0 { parts.append(L10n.text("\(other) 项工具操作", locale: locale)) }
+        return L10n.text(isRunning ? "正在执行 · " : "已执行 · ", locale: locale) + parts.joined(separator: " · ")
+    }
     static func group(_ messages: [CodexMessage]) -> [Self] {
         var result: [Self] = []
         for message in messages {
@@ -366,6 +376,16 @@ struct CodexEffort: Decodable, Identifiable {
     let reasoningEffort: String
     let description: String?
     var id: String { reasoningEffort }
+    var title: String {
+        switch reasoningEffort {
+        case "low": return "低 (low)"
+        case "medium": return "中 (medium)"
+        case "high": return "高 (high)"
+        case "xhigh": return "超高 (xhigh)"
+        case "max": return "最高 (max)"
+        default: return reasoningEffort
+        }
+    }
 }
 struct CodexModel: Decodable, Identifiable {
     let model: String
@@ -373,6 +393,7 @@ struct CodexModel: Decodable, Identifiable {
     let defaultReasoningEffort: String?
     let supportedReasoningEfforts: [CodexEffort]
     let isDefault: Bool
+    var aliases: [String]? = nil
     var id: String { model }
 }
 struct CodexModelCatalog: Decodable { let models: [CodexModel] }

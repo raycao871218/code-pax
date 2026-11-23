@@ -2,6 +2,7 @@ import SwiftUI
 
 @MainActor
 struct CollaborationView: View {
+    @Environment(\.locale) private var locale
     @ObservedObject private var workspace: WorkspaceModel
     @StateObject private var model: CollaborationModel
     @Environment(\.dismiss) private var dismiss
@@ -25,7 +26,7 @@ struct CollaborationView: View {
                             .disabled(workspace.isBusy || !workspace.connection.isConnected)
                     }
                 }
-                if let error = model.error { Section { Text(error).foregroundStyle(.red).textSelection(.enabled) } }
+                if let error = model.error { Section { AppText(error).foregroundStyle(.red).textSelection(.enabled) } }
                 if model.hasPendingOperation {
                     Section("一次操作的结果待确认") {
                         Text("先刷新查看任务状态。重试将复用原请求，避免重复启动或应用成果。")
@@ -41,7 +42,7 @@ struct CollaborationView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(run.goal).lineLimit(2)
-                                Text(collaborationStatus(run.status) + " · \(run.workers.count) 个 Worker · 并行上限 \(run.maxWorkers)")
+                                Text(verbatim: L10n.text(collaborationStatus(run.status), locale: locale) + L10n.text(" · \(run.workers.count) 个 Worker · 并行上限 \(run.maxWorkers)", locale: locale))
                                     .font(.caption).foregroundStyle(.secondary)
                                 Text(run.cwd).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                             }
@@ -114,7 +115,7 @@ private struct CreateCollaborationView: View {
                     Text("使用当前聊天的模型和权限设置。需要审批或澄清时，可从成员卡片打开会话处理。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+                if let error = model.error { AppText(error).foregroundStyle(.red).textSelection(.enabled) }
             }
             .navigationTitle("新建协作")
             .toolbar {
@@ -135,6 +136,7 @@ private struct CreateCollaborationView: View {
 
 @MainActor
 private struct CollaborationRunView: View {
+    @Environment(\.locale) private var locale
     @ObservedObject var model: CollaborationModel
     let runID: String
     let openSession: (String) -> Void
@@ -161,16 +163,16 @@ private struct CollaborationRunView: View {
             ForEach(run.tasks) { task in member(task, run: run) }
             results(run)
             inbox(run)
-            if let error = model.error { Section { Text(error).foregroundStyle(.red).textSelection(.enabled) } }
+            if let error = model.error { Section { AppText(error).foregroundStyle(.red).textSelection(.enabled) } }
         }
     }
 
     private func overview(_ run: CollaborationRun) -> some View {
         Section {
             Text(run.goal).font(.headline).textSelection(.enabled)
-            LabeledContent("状态", value: collaborationStatus(run.status))
+            LabeledContent("状态", value: L10n.text(collaborationStatus(run.status), locale: locale))
             LabeledContent("项目分支", value: run.sourceBranch)
-            if let error = run.error { Text(error).foregroundStyle(.orange).textSelection(.enabled) }
+            if let error = run.error { AppText(error).foregroundStyle(.orange).textSelection(.enabled) }
             if run.isActive {
                 Button("停止协作", role: .destructive) {
                     Task { await model.perform(["action": .string("teamCancel"), "runId": .string(runID)]) }
@@ -182,9 +184,9 @@ private struct CollaborationRunView: View {
     private func member(_ task: CollaborationTask, run: CollaborationRun) -> some View {
         Section(task.role == "coordinator" ? "主控" : "Worker") {
             Text(task.title).font(.headline)
-            Text(collaborationStatus(task.status) + (task.attempt > 1 ? " · 第 \(task.attempt) 次执行" : ""))
+            Text(verbatim: L10n.text(collaborationStatus(task.status), locale: locale) + (task.attempt > 1 ? L10n.text(" · 第 \(task.attempt) 次执行", locale: locale) : ""))
                 .font(.subheadline).foregroundStyle(task.status == "waiting" ? Color.orange : Color.secondary)
-            if let error = task.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+            if let error = task.error { AppText(error).foregroundStyle(.red).textSelection(.enabled) }
             if !task.result.isEmpty { Text(task.result).font(.callout).textSelection(.enabled) }
             if let session = task.sessionId { Button("打开成员会话 / 处理审批") { openSession(session) } }
             if task.isRunning, task.status != "unknown", let session = task.sessionId {
@@ -258,7 +260,7 @@ private struct CollaborationDiffView: View {
         NavigationStack {
             ScrollView([.horizontal, .vertical]) {
                 VStack(alignment: .leading, spacing: 12) {
-                    if let error { Text(error).foregroundStyle(.red) }
+                    if let error { AppText(error).foregroundStyle(.red) }
                     else if let diff {
                         if diff.truncated { Text("差异过长，仅显示前 128 KiB。完整成果保留在服务器成果分支。").foregroundStyle(.orange) }
                         Text(diff.text.isEmpty ? "没有代码改动" : diff.text)

@@ -34,7 +34,7 @@ enum CompanionState: String, Equatable {
             let current = messages.suffix(from: messages.lastIndex(where: { $0.kind == "userMessage" }).map { $0 + 1 } ?? messages.startIndex)
             guard let active = current.last(where: { ["inProgress", "starting"].contains($0.status) }) else { return .thinking }
             if active.kind == "agentMessage" { return .replying }
-            if ["commandExecution", "fileChange", "webSearch", "mcpToolCall", "dynamicToolCall"].contains(active.kind) { return .executing }
+            if ["commandExecution", "fileChange", "webSearch", "mcpToolCall", "dynamicToolCall", "toolCall"].contains(active.kind) { return .executing }
             return .thinking
         default: return .idle
         }
@@ -86,7 +86,7 @@ struct CompanionAvatar: View {
                 }
             } else { BrandMark() }
         }
-        .accessibilityElement(children: .ignore).accessibilityLabel("Code Pax，\(state.title)")
+        .accessibilityElement(children: .ignore).accessibilityLabel("Code Pax，\(L10n.text(state.title))")
         .onChange(of: playing) { _, active in if active { started = Date() } }
     }
 }

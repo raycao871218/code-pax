@@ -34,7 +34,7 @@ struct PalettePicker: View {
     var body: some View {
         Picker("配色", selection: $palette) {
             ForEach(InterfacePalette.allCases) { value in
-                Label { Text(value.title) } icon: { Image(systemName: "circle.fill").foregroundStyle(value.color(dark: false)) }.tag(value.rawValue)
+                Label { Text(LocalizedStringKey(value.title)) } icon: { Image(systemName: "circle.fill").foregroundStyle(value.color(dark: false)) }.tag(value.rawValue)
             }
         }
     }
@@ -99,7 +99,7 @@ struct SkinPicker: View {
     @AppStorage("interfaceSkin") private var skin = InterfaceSkin.classic.rawValue
     var body: some View {
         Picker("界面皮肤", selection: $skin) {
-            ForEach(InterfaceSkin.allCases) { Label($0.title, systemImage: $0.symbol).tag($0.rawValue) }
+            ForEach(InterfaceSkin.allCases) { Label(LocalizedStringKey($0.title), systemImage: $0.symbol).tag($0.rawValue) }
         }
     }
 }

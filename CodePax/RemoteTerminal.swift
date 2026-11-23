@@ -208,14 +208,29 @@ struct RemoteTerminalScreen: View {
     @ObservedObject var model: RemoteTerminalModel
     @ObservedObject var connection: ConnectionModel
     let workingDirectory: String?
+    var embedded = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.interfaceTheme) private var theme
     @State private var showKeyBar = true
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                if embedded {
+                    HStack {
+                        AppText(model.state.title).font(.caption).foregroundStyle(.secondary)
+                        if !model.directory.isEmpty { Text(model.directory).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                        Spacer()
+                        Menu {
+                            Toggle("快捷键栏", isOn: $showKeyBar)
+                            Button("清屏", systemImage: "eraser") { model.clearScreen() }
+                            Stepper("字号 \(Int(model.fontSize))", value: $model.fontSize, in: 11...24)
+                            if model.state.active { Button("结束终端", systemImage: "stop.circle", role: .destructive) { model.stop() } }
+                            else { Button("新建终端") { model.start(directory: workingDirectory) } }
+                        } label: { Image(systemName: "ellipsis") }
+                    }.padding(.horizontal, 18).padding(.vertical, 8)
+                }
                 if let error = model.error {
-                    Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                    AppText(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
                         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 TerminalSurface(model: model).padding(.horizontal, 8).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -239,7 +254,7 @@ struct RemoteTerminalScreen: View {
                             Text("终端 · " + connection.profile.displayName).font(.subheadline.weight(.semibold)).lineLimit(1)
                             HStack(spacing: 5) {
                                 Circle().fill(model.state == .running ? Color.green : Color.secondary).frame(width: 5, height: 5)
-                                Text(model.state.title).font(.caption2).foregroundStyle(.secondary)
+                                AppText(model.state.title).font(.caption2).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -259,7 +274,8 @@ struct RemoteTerminalScreen: View {
                     }
                     ToolbarItem(placement: .confirmationAction) { Button("收起") { _ = model.terminal.resignFirstResponder(); dismiss() } }
                 }
-        }.task {
+        }.toolbar(embedded ? .hidden : .visible, for: .navigationBar)
+        .task {
             model.startIfNeeded(directory: workingDirectory)
             // Sheet presentation may attach the retained terminal after this task starts.
             for _ in 0..<20 {

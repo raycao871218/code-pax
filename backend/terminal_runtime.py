@@ -51,6 +51,50 @@ def launch_command(agent, command=None):
     return argv
 
 
+def launch_configuration(agent, configuration=None, login=False):
+    """Resolve per-session settings without shell interpolation or changing daemon env."""
+    import re
+    import shlex
+    if not isinstance(configuration, dict):
+        raise ValueError("Agent 配置必须为对象。")
+    def field(name, limit=4096):
+        value = configuration.get(name, "")
+        if not isinstance(value, str) or len(value) > limit or any(ord(c) < 32 for c in value):
+            raise ValueError("无效的 Agent 配置字段：" + name)
+        return value.strip()
+    if agent not in {key for key, _, _ in AGENTS} | {"custom"}:
+        raise ValueError("不支持的 CLI 类型。")
+    executable = field("executable") or (agent if agent != "custom" else "")
+    if login:
+        raw = field("loginCommand")
+        if not raw:
+            raise ValueError("请先配置登录命令。")
+        argv = shlex.split(raw)
+    else:
+        argv = [executable] + shlex.split(field("arguments"))
+        model = field("model", 256)
+        if model:
+            flag = field("modelArgument", 128) or "--model"
+            if not flag.startswith("-") or any(c.isspace() for c in flag):
+                raise ValueError("模型参数名必须是单个选项，例如 --model。")
+            argv += [flag, model]
+    environment = configuration.get("environment", {})
+    if not isinstance(environment, dict) or len(environment) > 64:
+        raise ValueError("环境变量格式不正确（最多 64 项）。")
+    for key, value in environment.items():
+        if not isinstance(key, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,127}", key):
+            raise ValueError("环境变量名称不正确。")
+        if not isinstance(value, str) or len(value) > 16384 or "\x00" in value:
+            raise ValueError("环境变量值不正确。")
+    path = environment.get("PATH", os.environ.get("PATH", ""))
+    argv[0] = os.path.expanduser(argv[0]) if argv else ""
+    resolved = shutil.which(argv[0], path=path) if argv and argv[0] else None
+    if not resolved:
+        raise ValueError("服务器未找到配置的 CLI，请检查可执行文件路径或 PATH。")
+    argv[0] = resolved
+    return argv, dict(environment)
+
+
 def dimensions(cols, rows):
     if type(cols) is not int or type(rows) is not int or not 20 <= cols <= 400 or not 5 <= rows <= 200:
         raise ValueError("无效的终端尺寸。")
@@ -58,7 +102,7 @@ def dimensions(cols, rows):
 
 
 class Terminal:
-    def __init__(self, directory, identifier, argv, cwd, on_exit, cols=100, rows=30):
+    def __init__(self, directory, identifier, argv, cwd, on_exit, cols=100, rows=30, environment=None):
         import fcntl
         import pty
         import termios
@@ -77,7 +121,8 @@ class Terminal:
         master, slave = pty.openpty()
         try:
             fcntl.ioctl(slave, termios.TIOCSWINSZ, size)
-            env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
+            env = dict(os.environ, **(environment or {}))
+            env.update(TERM="xterm-256color", COLORTERM="truecolor")
             # A separate exec helper acquires the controlling tty without preexec_fn in our threaded daemon.
             self.process = subprocess.Popen(
                 [sys.executable, str(Path(__file__).resolve()), "child", json.dumps(argv)],

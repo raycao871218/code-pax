@@ -28,7 +28,7 @@ struct UsageView: View {
                     }
                 } else {
                     Section("账号额度") {
-                        Text(model.isUsageLoading ? "正在读取服务器账号额度…" : "当前暂无账号额度数据。")
+                        AppText(model.isUsageLoading ? "正在读取服务器账号额度…" : "当前暂无账号额度数据。")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -63,7 +63,7 @@ struct UsageView: View {
                 }
                 if let error = model.usageError {
                     Section {
-                        Label(error, systemImage: "exclamationmark.circle").font(.caption).foregroundStyle(.orange)
+                        AppLabel(error, systemImage: "exclamationmark.circle").font(.caption).foregroundStyle(.orange)
                         if model.accountUsage != nil { Text("已显示的额度可能是上次成功读取的结果。 ").font(.caption).foregroundStyle(.secondary) }
                     }
                 }
@@ -99,7 +99,7 @@ private struct UsageWindowRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(window.title)
+                AppText(window.title)
                 Spacer()
                 Text("剩余 \(window.remainingPercent.formatted(.number.precision(.fractionLength(0...1))))%")
                     .foregroundStyle(usageColor).monospacedDigit()

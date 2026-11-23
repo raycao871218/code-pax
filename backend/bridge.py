@@ -18,11 +18,12 @@ import threading
 import time
 import uuid
 
-from terminal_runtime import Terminal, agent_catalog, launch_command, read_archive
+from terminal_runtime import Terminal, agent_catalog, launch_command, launch_configuration, read_archive
 from collaboration import Teams, tools_for
+from claude_runtime import ClaudeChat
 
 PROTOCOL = 3
-BRIDGE_VERSION = "0.16.0"
+BRIDGE_VERSION = "0.17.2"
 MAX_WIRE = 2 * 1024 * 1024
 MAX_TEXT = 12000
 MESSAGE_PREVIEW = 4000
@@ -160,7 +161,7 @@ class Store:
 
     def operation_status(self, request):
         token = request.get("operationId", "")
-        digest = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+        digest = self.operation_digest(request)
         with self.lock:
             row = self.db.execute("SELECT digest,value FROM operations WHERE id=?", (token,)).fetchone()
         if not row:
@@ -180,7 +181,7 @@ class Store:
         token = request.get("operationId", "")
         if not isinstance(token, str) or not 8 <= len(token) <= 100:
             raise BridgeError("操作缺少有效的幂等 ID。")
-        digest = hashlib.sha256(json.dumps(request, sort_keys=True).encode()).hexdigest()
+        digest = self.operation_digest(request)
         with self.lock:
             row = self.db.execute("SELECT digest,value FROM operations WHERE id=?", (token,)).fetchone()
             if row:
@@ -205,6 +206,16 @@ class Store:
             self.db.execute("UPDATE operations SET value=? WHERE id=?", (json.dumps(result), token))
             self.db.commit()
         return result
+
+    @staticmethod
+    def operation_digest(request):
+        # Send retries carry fresh credentials from the device keychain. They are
+        # transport configuration, not a second user message; never rerun an
+        # accepted operation because a credential was edited or omitted on probe.
+        value = dict(request)
+        if value.get("action") == "send":
+            value.pop("agentConfiguration", None)
+        return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
 class AppServer:
@@ -293,6 +304,7 @@ class Bridge:
         self.loaded = set()
         self.stopping = False
         self.terminals = {}
+        self.claude = ClaudeChat(self)
         self.epoch = uuid.uuid4().hex
         for session in self.sessions.values():
             if session.get("status") == "completed" and session.get("turnId"):
@@ -344,7 +356,7 @@ class Bridge:
             except (OSError, subprocess.TimeoutExpired, BridgeError):
                 pass
         return {"protocol": PROTOCOL, "ready": True, "codexReady": self.rpc.ready,
-                "capabilities": ["terminal", "customCLI", "projects", "accessMode", "operationStatus", "optimisticMessages", "usage", "attachments", "messageBody", "manageSessions", "downloadFiles"] + (
+                "capabilities": ["terminal", "claudeChat", "claudeModels", "agentConfiguration", "customCLI", "projects", "accessMode", "operationStatus", "optimisticMessages", "usage", "attachments", "messageBody", "manageSessions", "downloadFiles"] + (
                     ["codexChat", "catalog", "models", "collaboration"] if self.rpc.ready else []),
                 "agents": agent_catalog(),
                 "version": BRIDGE_VERSION,
@@ -458,6 +470,12 @@ class Bridge:
             self.project(session["cwd"])
             if session.get("mode") == "terminal":
                 return {"messages": [], "nextCursor": None}
+            if session.get("agent") == "claude":
+                offset = int(request.get("cursor") or len(session["messages"]))
+                if not 0 <= offset <= len(session["messages"]):
+                    raise BridgeError("无效的 Claude 历史分页位置。")
+                start = max(0, offset - 40)
+                return {"messages": session["messages"][start:offset], "nextCursor": str(start) if start else None}
         remote_id = session.get("remoteThreadId", identifier)
         if str(request.get("cursor", "")).startswith("legacy:"):
             return self.legacy_history_page(remote_id, request.get("cursor"))
@@ -505,7 +523,7 @@ class Bridge:
                 "nextCursor": "legacy:" + messages[start]["id"] if start else None}
 
     def update_writer_occupancy(self, session):
-        if session.get("mode") == "terminal":
+        if session.get("mode") == "terminal" or session.get("agent") == "claude":
             return
         identifier = session["id"]
         occupied = False if identifier in self.loaded else thread_writer_occupied(session.get("remoteThreadId", identifier))
@@ -526,7 +544,7 @@ class Bridge:
         with self.lock:
             session = self.session(identifier)
             self.project(session["cwd"])
-            if session.get("mode") == "terminal":
+            if session.get("mode") == "terminal" or session.get("agent") == "claude":
                 return {"id": identifier}
             if identifier in self.loaded:
                 return {"id": identifier}
@@ -639,7 +657,7 @@ class Bridge:
                 return
             if method == "bridge/disconnected":
                 for session in self.sessions.values():
-                    if session.get("mode") == "terminal":
+                    if session.get("mode") == "terminal" or session.get("agent") == "claude":
                         continue
                     if session["status"] in ACTIVE:
                         session["status"] = "interrupted"
@@ -741,6 +759,8 @@ class Bridge:
     def create(self, request):
         if request.get("mode", "chat") not in {"chat", "terminal"}:
             raise BridgeError("不支持的会话模式。")
+        if request.get("agent") == "claude" and request.get("mode", "chat") == "chat":
+            return self.claude.create(request)
         if request.get("agent", "codex") != "codex" and request.get("mode") == "chat":
             raise BridgeError("该 CLI 请使用终端模式。")
         if request.get("mode") == "terminal" or request.get("agent", "codex") != "codex":
@@ -911,6 +931,9 @@ class Bridge:
         return record
 
     def send(self, request):
+        session = self.session(request.get("sessionId"))
+        if session.get("agent") == "claude" and session.get("mode") == "chat":
+            return self.claude.send(request)
         if self.session(request.get("sessionId")).get("mode") == "terminal":
             raise BridgeError("终端会话请使用终端输入。")
         text = request.get("text", "").strip()
@@ -1006,6 +1029,8 @@ class Bridge:
             raise
 
     def answer(self, request):
+        if self.session(request.get("sessionId")).get("agent") == "claude":
+            return self.claude.answer(request)
         with self.lock:
             session = self.session(request.get("sessionId"))
             approval = next((a for a in session["approvals"] if a["id"] == request.get("requestId")), None)
@@ -1044,6 +1069,9 @@ class Bridge:
         return {}
 
     def stop(self, request):
+        session = self.session(request.get("sessionId"))
+        if session.get("agent") == "claude" and session.get("mode") == "chat":
+            return self.claude.stop(request)
         with self.lock:
             session = self.session(request.get("sessionId"))
             if session.get("mode") == "terminal":
@@ -1061,7 +1089,11 @@ class Bridge:
     def create_terminal(self, request):
         path = self.project(request.get("cwd"))
         agent = request.get("agent", "codex")
-        argv = launch_command(agent, request.get("command"))
+        environment = None
+        if "agentConfiguration" in request:
+            argv, environment = launch_configuration(agent, request["agentConfiguration"], login=request.get("login") is True)
+        else:
+            argv = launch_command(agent, request.get("command"))
         identifier = "cli-" + uuid.uuid4().hex
         session = {"id": identifier, "title": agent + " · " + path.name, "cwd": str(path),
                    "status": "starting", "turnId": None, "updatedAt": time.time(), "origin": "app",
@@ -1084,7 +1116,7 @@ class Bridge:
             self.sessions[identifier] = session
             self.store.save(session)
         try:
-            terminal = Terminal(self.directory, identifier, argv, path, exited)
+            terminal = Terminal(self.directory, identifier, argv, path, exited, environment=environment)
         except Exception as error:
             with self.lock:
                 session["status"], session["error"] = "failed", str(error)
@@ -1179,6 +1211,8 @@ class Bridge:
 
     def dispatch(self, request):
         action = request.get("action")
+        if action == "models" and request.get("agent") == "claude":
+            return {"ok": True, "result": self.claude.models(request)}
         if action == "teamList":
             return {"ok": True, "result": self.teams.summaries()}
         if action == "teamRead":
@@ -1328,6 +1362,7 @@ def serve(directory, root):
             pass
         finally:
             bridge.teams.close()
+            bridge.claude.close()
             for terminal in list(bridge.terminals.values()):
                 terminal.stop()
             if bridge.rpc.process is not None:

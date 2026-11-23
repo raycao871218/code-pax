@@ -5,6 +5,14 @@ import UniformTypeIdentifiers
 @testable import CodePax
 
 final class InteractionTests: XCTestCase {
+    func testClaudeAvatarPausesAndHasDistinctWorkingAndBlinkPoses() {
+        XCTAssertEqual(ClaudeAvatarPose.phase(elapsed: 0.4, state: .executing, animated: true), 1)
+        XCTAssertEqual(ClaudeAvatarPose.phase(elapsed: 1.1, state: .thinking, animated: true), 2)
+        XCTAssertEqual(ClaudeAvatarPose.phase(elapsed: 4.3, state: .idle, animated: true), 2)
+        for state in [CompanionState.thinking, .executing, .waiting, .idle] {
+            XCTAssertEqual(ClaudeAvatarPose.phase(elapsed: 4.3, state: state, animated: false), 0)
+        }
+    }
     @MainActor
     func testSkinChangesImmediatelyAndPreservesIndependentAppearance() async throws {
         let suite = "skin-test-" + UUID().uuidString

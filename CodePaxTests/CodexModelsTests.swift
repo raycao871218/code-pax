@@ -4,6 +4,15 @@ import UIKit
 @testable import CodePax
 
 final class CodexModelsTests: XCTestCase {
+    func testProviderModelCatalogDecodesConcreteVersionsCapabilitiesAndLegacyCodexRows() throws {
+        let payload = #"{"models":[{"model":"claude-sonnet-example","displayName":"Sonnet Example","aliases":["sonnet"],"defaultReasoningEffort":null,"supportedReasoningEfforts":[{"reasoningEffort":"high","description":null}],"isDefault":true},{"model":"codex-example","displayName":"Codex","supportedReasoningEfforts":[],"isDefault":false}]}"#
+        let catalog = try JSONDecoder().decode(CodexModelCatalog.self, from: Data(payload.utf8))
+        XCTAssertEqual(catalog.models[0].model, "claude-sonnet-example")
+        XCTAssertEqual(catalog.models[0].aliases, ["sonnet"])
+        XCTAssertEqual(catalog.models[0].supportedReasoningEfforts.map(\.reasoningEffort), ["high"])
+        XCTAssertNil(catalog.models[1].aliases)
+        XCTAssertTrue(catalog.models[1].supportedReasoningEfforts.isEmpty)
+    }
     func testAttachmentLimitsAndAttachmentOnlyMessage() throws {
         XCTAssertThrowsError(try AttachmentPolicy.validate(size: 0, count: 0))
         XCTAssertThrowsError(try AttachmentPolicy.validate(size: AttachmentPolicy.maximumSize + 1, count: 0))

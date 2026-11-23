@@ -1,0 +1,23 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "NSLocalNetworkUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接你的局域网或 ZeroTier 网络中的 SSH 开发服务器。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to your SSH development servers on the local network or ZeroTier network."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

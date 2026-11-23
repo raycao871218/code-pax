@@ -195,7 +195,7 @@ struct AppearanceCustomizationView: View {
     var body: some View {
         Form {
             Section("界面") {
-                SkinPicker(); PalettePicker(); AppearancePicker()
+                LanguagePicker(); SkinPicker(); PalettePicker(); AppearancePicker()
                 Text("角色主题会同步调整背景和气泡；经典工作台调整强调色。切换后立即生效。").font(.caption).foregroundStyle(.secondary)
             }
             Section("头像与动作") {
@@ -217,7 +217,7 @@ struct AppearanceCustomizationView: View {
                 }
                 Text("自定义内容保存在本机，不更换桌面图标。聊天头像需选择“角色主题”。只导入头像时保持静态；只导入动作时用第一帧作为头像。动作仍只出现在最新回复，左上角不显示 Logo。").font(.caption).foregroundStyle(.secondary)
                 if store.isImporting || photoLoading { ProgressView("正在导入…") }
-                if let error = store.error { Text(error).font(.caption).foregroundStyle(.red) }
+                if let error = store.error { AppText(error).font(.caption).foregroundStyle(.red) }
             }.disabled(store.isImporting || photoLoading)
             Section {
                 NavigationLink { AvatarCreationGuide() } label: { Label("制作引导与提示词模板", systemImage: "wand.and.stars") }
@@ -285,8 +285,8 @@ struct AvatarCreationGuide: View {
     }
     private func prompt(_ text: String, title: String) -> some View {
         DisclosureGroup("提示词模板") {
-            Text(text).font(.callout).textSelection(.enabled)
-            Button(copied == title ? "已复制" : title, systemImage: "doc.on.doc") { UIPasteboard.general.string = text; copied = title }
+            AppText(text).font(.callout).textSelection(.enabled)
+            Button(L10n.text(copied == title ? "已复制" : title), systemImage: "doc.on.doc") { UIPasteboard.general.string = L10n.text(text); copied = title }
         }
     }
 }

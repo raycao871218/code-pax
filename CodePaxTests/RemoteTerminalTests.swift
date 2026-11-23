@@ -16,10 +16,10 @@ final class RemoteTerminalTests: XCTestCase {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.first as? UIWindowScene)
         let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
         defer { previousKeyWindow?.makeKey() }
-        for _ in 0..<2 {
+        for embedded in [false, true] {
             let window = UIWindow(windowScene: scene)
             window.rootViewController = UIHostingController(rootView:
-                RemoteTerminalScreen(model: model, connection: connection, workingDirectory: nil))
+                RemoteTerminalScreen(model: model, connection: connection, workingDirectory: nil, embedded: embedded))
             window.makeKeyAndVisible()
             defer { window.isHidden = true; window.rootViewController = nil }
             try await waitFor { model.terminal.isFirstResponder }
