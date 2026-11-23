@@ -390,7 +390,7 @@ func cliAgentTitle(_ agent: String) -> String {
 struct CodexProject: Decodable, Identifiable, Equatable { let id: String; let title: String }
 struct CodexCatalogPage: Decodable { let nextCursor: String?; let imported: Int; let skipped: Int }
 struct CodexHistoryPage: Decodable { let messages: [CodexMessage]; let nextCursor: String? }
-struct CodexEffort: Decodable, Identifiable {
+struct CodexEffort: Decodable, Identifiable, Equatable {
     let reasoningEffort: String
     let description: String?
     var id: String { reasoningEffort }
@@ -405,7 +405,7 @@ struct CodexEffort: Decodable, Identifiable {
         }
     }
 }
-struct CodexModel: Decodable, Identifiable {
+struct CodexModel: Decodable, Identifiable, Equatable {
     let model: String
     let displayName: String
     let defaultReasoningEffort: String?
