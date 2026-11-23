@@ -356,7 +356,7 @@ class Bridge:
             except (OSError, subprocess.TimeoutExpired, BridgeError):
                 pass
         return {"protocol": PROTOCOL, "ready": True, "codexReady": self.rpc.ready,
-                "capabilities": ["terminal", "claudeChat", "claudeModels", "agentConfiguration", "customCLI", "projects", "accessMode", "operationStatus", "optimisticMessages", "usage", "attachments", "messageBody", "manageSessions", "downloadFiles"] + (
+                "capabilities": ["terminal", "claudeChat", "claudeModels", "claudeImport", "agentConfiguration", "customCLI", "projects", "accessMode", "operationStatus", "optimisticMessages", "usage", "attachments", "messageBody", "manageSessions", "downloadFiles"] + (
                     ["codexChat", "catalog", "models", "collaboration"] if self.rpc.ready else []),
                 "agents": agent_catalog(),
                 "version": BRIDGE_VERSION,
@@ -1213,6 +1213,9 @@ class Bridge:
         action = request.get("action")
         if action == "models" and request.get("agent") == "claude":
             return {"ok": True, "result": self.claude.models(request)}
+        if action == "claudeCatalog":
+            with self.mutations:
+                return {"ok": True, "result": self.claude.catalog(request)}
         if action == "teamList":
             return {"ok": True, "result": self.teams.summaries()}
         if action == "teamRead":
