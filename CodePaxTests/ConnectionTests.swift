@@ -131,3 +131,23 @@ final class BridgeCompatibilityTests: XCTestCase {
         XCTAssertNotNil(BridgeCompatibility.problem(for: try status(protocol: 3, ready: false)))
     }
 }
+
+final class RefreshEqualityTests: XCTestCase {
+    func testRepeatedObservationsDoNotChangeCompletionReads() {
+        var reads = CompletionReads()
+        reads.observe(id: "a", completedTurnID: "t1")
+        let baseline = reads
+        reads.observe(id: "a", completedTurnID: "t1")
+        reads.markRead(id: "a", completedTurnID: "t1")
+        XCTAssertEqual(reads, baseline)  // unchanged state must not be republished
+        reads.observe(id: "a", completedTurnID: "t2")
+        XCTAssertNotEqual(reads, baseline)
+    }
+
+    func testIdenticalSnapshotsCompareEqual() throws {
+        let json = #"{"id":"s","title":"t","cwd":"/p","status":"idle","updatedAt":1,"origin":"app","model":null}"#
+        let first = try JSONDecoder().decode(CodexSessionSummary.self, from: Data(json.utf8))
+        let second = try JSONDecoder().decode(CodexSessionSummary.self, from: Data(json.utf8))
+        XCTAssertEqual(first, second)
+    }
+}
