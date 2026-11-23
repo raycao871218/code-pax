@@ -108,3 +108,26 @@ final class ConnectionTests: XCTestCase {
         XCTAssertThrowsError(try HostFingerprint.make(openSSHKey: "invalid"))
     }
 }
+
+final class BridgeCompatibilityTests: XCTestCase {
+    private func status(protocol version: Int, ready: Bool = true) throws -> BridgeStatus {
+        let json = #"{"protocol":\#(version),"ready":\#(ready),"root":"/r","authenticated":true,"accountType":"x","futureField":1}"#
+        return try JSONDecoder().decode(BridgeStatus.self, from: Data(json.utf8))
+    }
+
+    func testAcceptsSupportedProtocolAndIgnoresUnknownFields() throws {
+        XCTAssertNil(BridgeCompatibility.problem(for: try status(protocol: 3)))
+    }
+
+    func testRejectsNewerAndOlderProtocolsWithDistinctMessages() throws {
+        let newer = BridgeCompatibility.problem(for: try status(protocol: 99))
+        let older = BridgeCompatibility.problem(for: try status(protocol: 0))
+        XCTAssertNotNil(newer)
+        XCTAssertNotNil(older)
+        XCTAssertNotEqual(newer, older)
+    }
+
+    func testRejectsNotReadyBridge() throws {
+        XCTAssertNotNil(BridgeCompatibility.problem(for: try status(protocol: 3, ready: false)))
+    }
+}
