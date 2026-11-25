@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Focus the in-app portrait on the face and headset; the home-screen artwork stays unchanged.
+/// Display the brand artwork or the user's custom portrait.
 struct BrandMark: View {
     @ObservedObject private var store = CustomAvatarStore.shared
     var body: some View {
@@ -10,7 +10,6 @@ struct BrandMark: View {
                     Image(uiImage: image).resizable().interpolation(.high).scaledToFill()
                 } else {
                     Image("CodePaxPortrait").resizable().interpolation(.high).scaledToFit()
-                        .scaleEffect(1.24, anchor: .top)
                 }
             }.frame(width: geometry.size.width, height: geometry.size.height)
                 .clipped()

@@ -3,11 +3,11 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
-// Package the approved portrait without changing its composition or character.
-let source = CommandLine.arguments.dropFirst().first ?? "design/brand/code-pax-headset-source.png"
+// Package the approved artwork without changing its composition.
+let source = CommandLine.arguments.dropFirst().first ?? "design/brand/codepax-terminal-concept-v2.png"
 guard let input = CGImageSourceCreateWithURL(URL(fileURLWithPath: source) as CFURL, nil),
       let image = CGImageSourceCreateImageAtIndex(input, 0, nil) else {
-    fatalError("Could not read the approved Code Pax portrait: \(source)")
+    fatalError("Could not read the approved CodePax artwork: \(source)")
 }
 precondition(image.width == image.height, "The approved app icon must be square")
 func export(size: Int, to path: String) {
