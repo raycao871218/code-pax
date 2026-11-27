@@ -95,16 +95,71 @@ final class InteractionTests: XCTestCase {
 
     func testThinkingAnimationUsesDrawnFramesAndStopsForReducedMotion() {
         XCTAssertEqual(ThinkingFrames.index(elapsed: 0, enabled: true), 0)
-        XCTAssertEqual(ThinkingFrames.index(elapsed: 0.66, enabled: true), 1)
+        XCTAssertEqual(ThinkingFrames.index(elapsed: 0.76, enabled: true), 1)
         XCTAssertEqual(ThinkingFrames.index(elapsed: 1.36, enabled: true), 2)
-        XCTAssertEqual(ThinkingFrames.index(elapsed: 1.52, enabled: true), 3)
-        XCTAssertEqual(ThinkingFrames.index(elapsed: ThinkingFrames.cycle + 0.66, enabled: true), 1)
+        XCTAssertEqual(ThinkingFrames.index(elapsed: 1.42, enabled: true), 3)
+        XCTAssertEqual(ThinkingFrames.index(elapsed: 1.50, enabled: true), 4)
+        XCTAssertEqual(ThinkingFrames.index(elapsed: 1.57, enabled: true), 5)
+        XCTAssertEqual(ThinkingFrames.index(elapsed: 1.63, enabled: true), 6)
+        XCTAssertEqual(ThinkingFrames.index(elapsed: 2.28, enabled: true), 7)
+        XCTAssertEqual(ThinkingFrames.index(elapsed: ThinkingFrames.cycle + 0.76, enabled: true), 1)
         for time in [0.0, 0.66, 1.36, 1.52, Double.infinity, -1] {
             XCTAssertEqual(ThinkingFrames.index(elapsed: time, enabled: false), 0)
         }
-        let images = (0..<4).compactMap { UIImage(named: "CodePaxThinking\($0)", in: Bundle(for: WorkspaceModel.self), compatibleWith: nil) }
-        XCTAssertEqual(images.count, 4)
-        XCTAssertEqual(Set(images.compactMap { $0.pngData() }).count, 4, "Each pose must be a different actual bitmap")
+        var portraits: [Data] = []
+        for character in [AssistantCharacter.codex, .claude] {
+            let images = (0..<8).compactMap { UIImage(named: "\(character.thinkingPrefix)\($0)", in: Bundle(for: WorkspaceModel.self), compatibleWith: nil) }
+            XCTAssertEqual(images.count, 8, "\(character) needs all eight poses")
+            XCTAssertEqual(Set(images.compactMap { $0.pngData() }).count, 8, "Each pose must be a different actual bitmap")
+            let portrait = UIImage(named: character.portraitAsset, in: Bundle(for: WorkspaceModel.self), compatibleWith: nil)
+            XCTAssertNotNil(portrait, "\(character) needs a static portrait")
+            if let data = portrait?.pngData() { portraits.append(data) }
+        }
+        XCTAssertEqual(Set(portraits).count, 2, "Codex and Claude must have distinct portraits")
+        XCTAssertNil(AssistantCharacter(rawValue: "gemini"), "Other agents must not impersonate Codex or Claude")
+    }
+
+    func testMotionRotationStaysWithinTheCurrentActivityAndSwitchesAtLoopBoundaries() {
+        let slot = ThinkingFrames.cycle * 2
+        let first = CompanionMotionPlayback.frame(state: .thinking, elapsed: 0, variant: 0, enabled: true)
+        XCTAssertEqual(first?.motion, .thinking)
+        XCTAssertEqual(CompanionMotionPlayback.frame(state: .thinking, elapsed: slot - 0.01, variant: 0, enabled: true)?.motion, .thinking)
+        XCTAssertEqual(CompanionMotionPlayback.frame(state: .thinking, elapsed: slot, variant: 0, enabled: true), CompanionMotionFrame(motion: .reading, index: 0))
+        XCTAssertEqual(CompanionMotionPlayback.frame(state: .thinking, elapsed: slot * 2, variant: 0, enabled: true), CompanionMotionFrame(motion: .focusing, index: 0))
+        XCTAssertEqual(CompanionMotionPlayback.frame(state: .thinking, elapsed: slot * 3 + 0.001, variant: 0, enabled: true), first)
+        XCTAssertEqual(CompanionMotionPlayback.frame(state: .thinking, elapsed: 0, variant: 1, enabled: true)?.motion, .reading)
+        for state in [CompanionState.sending, .thinking, .executing, .replying] {
+            for elapsed in [0.0, 1.0, slot, slot * 3] {
+                let frame = CompanionMotionPlayback.frame(state: state, elapsed: elapsed, variant: 5, enabled: true)
+                XCTAssertTrue(CompanionMotion.options(for: state).contains(frame!.motion))
+                XCTAssertTrue((0..<8).contains(frame!.index))
+                XCTAssertNotEqual(frame?.motion, .celebrating)
+            }
+        }
+    }
+
+    func testCelebrationPlaysOnceAndInvalidTimingCannotAdvanceAnimation() {
+        XCTAssertEqual(CompanionMotionPlayback.frame(state: .completed, elapsed: 0, variant: 0, enabled: true)?.index, 0)
+        for elapsed in [CompanionMotion.celebrating.cycle, 100] {
+            XCTAssertEqual(CompanionMotionPlayback.frame(state: .completed, elapsed: elapsed, variant: 0, enabled: true), CompanionMotionFrame(motion: .celebrating, index: 7))
+        }
+        for elapsed in [Double.nan, .infinity, -1] {
+            XCTAssertEqual(CompanionMotionPlayback.frame(state: .thinking, elapsed: elapsed, variant: -1, enabled: true)?.index, 0)
+        }
+        XCTAssertEqual(CompanionMotionPlayback.frame(state: .executing, elapsed: 100, variant: 0, enabled: false)?.index, 0)
+        for state in [CompanionState.idle, .waiting, .failed, .interrupted, .offline, .uncertain] {
+            XCTAssertNil(CompanionMotionPlayback.frame(state: state, elapsed: 100, variant: 0, enabled: true))
+        }
+    }
+
+    func testEachCharacterHasEveryMotionAndDistinctDrawnFrames() {
+        for character in [AssistantCharacter.codex, .claude] {
+            for motion in CompanionMotion.allCases {
+                let images = (0..<8).compactMap { UIImage(named: motion.asset(for: character, frame: $0), in: Bundle(for: WorkspaceModel.self), compatibleWith: nil) }
+                XCTAssertEqual(images.count, 8, "Missing \(character) \(motion) frames")
+                XCTAssertEqual(Set(images.compactMap { $0.pngData() }).count, 8, "Repeated \(character) \(motion) bitmaps")
+            }
+        }
     }
 
     func testOnlyNewestCurrentTurnReplyGetsAnimationWithoutASeparateStatusCard() {
