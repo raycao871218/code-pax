@@ -200,7 +200,7 @@ struct AppearanceCustomizationView: View {
             }
             Section("头像与动作") {
                 HStack(spacing: 24) {
-                    VStack(spacing: 8) { BrandMark().frame(width: 80, height: 80); Text("静态头像").font(.caption) }
+                    VStack(spacing: 8) { CodexPortrait().frame(width: 80, height: 80); Text("静态头像").font(.caption) }
                     VStack(spacing: 8) { CompanionAvatar(state: .thinking).frame(width: 80, height: 80); Text("动作预览").font(.caption) }
                     Spacer()
                 }.padding(.vertical, 8)

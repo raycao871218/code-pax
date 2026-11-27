@@ -3,8 +3,8 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
-// Package the approved artwork without changing its composition.
-let source = CommandLine.arguments.dropFirst().first ?? "design/brand/codepax-terminal-concept-v2.png"
+// Package only the app icon. The Codex character portrait is an independent asset.
+let source = CommandLine.arguments.dropFirst().first ?? "design/brand/codepax-girls-duo-v9.png"
 guard let input = CGImageSourceCreateWithURL(URL(fileURLWithPath: source) as CFURL, nil),
       let image = CGImageSourceCreateImageAtIndex(input, 0, nil) else {
     fatalError("Could not read the approved CodePax artwork: \(source)")
@@ -26,4 +26,4 @@ func export(size: Int, to path: String) {
     print("Generated \(size)px: \(path)")
 }
 export(size:1024,to:"CodePax/Assets.xcassets/AppIcon.appiconset/AppIcon.png")
-export(size:512,to:"CodePax/Assets.xcassets/CodePaxPortrait.imageset/CodePaxPortrait.png")
+export(size:512,to:"CodePax/Assets.xcassets/CodePaxLogo.imageset/CodePaxLogo.png")

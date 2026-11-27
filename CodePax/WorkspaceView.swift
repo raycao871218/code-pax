@@ -1014,23 +1014,22 @@ private struct ConversationRow: View {
             } else {
                 if !entry.replyMessages.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        if agent == "claude" {
+                        if theme.isCompanion {
+                            HStack(spacing: 8) {
+                                if let avatarState {
+                                    CompanionAvatar(state: avatarState, agent: agent).frame(width: 72, height: 72)
+                                } else { AssistantPortrait(agent: agent).frame(width: 56, height: 56) }
+                                Text(cliAgentTitle(agent)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                Spacer()
+                            }
+                        } else if agent == "claude" {
                             HStack(spacing: 8) {
                                 ClaudeAvatar(state: avatarState ?? .idle, animated: avatarState != nil)
-                                    .frame(width: theme.isCompanion ? 64 : 38, height: theme.isCompanion ? 56 : 34)
+                                    .frame(width: 38, height: 34)
                                 Text("Claude Code").font(.subheadline.weight(.semibold))
                                 Spacer()
                             }
-                        } else if theme.isCompanion {
-                            HStack(spacing: 8) {
-                                if let avatarState {
-                                    CompanionAvatar(state: avatarState).frame(width: 72, height: 72)
-                                } else { BrandMark().frame(width: 56, height: 56) }
-                                Text("Codex").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                                Spacer()
-                            }
-                        }
-                        if !theme.isCompanion && agent != "claude" {
+                        } else {
                             Label("Codex", systemImage: "chevron.left.forwardslash.chevron.right")
                                 .font(.subheadline.weight(.semibold)).padding(.bottom, 4)
                         }
