@@ -69,3 +69,42 @@ class ProjectRootTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AgentWorkspaceTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name).resolve()
+        (self.root / "state").mkdir()
+        self.job = self.root / ".agent-ops" / "work" / "job-1"
+        self.job.mkdir(parents=True)
+        self.app = self.root / "app"
+        self.app.mkdir()
+        self.bridge = Bridge(self.root / "state", self.root, rpc_factory=FakeRPC)
+
+    def tearDown(self):
+        self.bridge.store.db.close()
+        self.temp.cleanup()
+
+    def add(self, identifier, cwd, origin):
+        self.bridge.sessions[identifier] = {"id": identifier, "title": identifier, "cwd": str(cwd), "status": "idle",
+            "updatedAt": 1, "origin": origin, "messages": [], "approvals": [], "diff": ""}
+
+    def test_detects_hidden_folders_below_the_work_root_only(self):
+        self.assertTrue(self.bridge.agent_workspace(str(self.job)))
+        self.assertFalse(self.bridge.agent_workspace(str(self.app)))
+        self.assertFalse(self.bridge.agent_workspace(str(self.root)))
+        self.assertFalse(self.bridge.agent_workspace("/elsewhere/.hidden"))
+
+    def test_imported_sessions_in_hidden_folders_are_not_listed(self):
+        self.add("claude:job", self.job, "claude")
+        self.add("codex-job", self.job, "codex")
+        self.add("claude:app", self.app, "claude")
+        snapshot = self.bridge.snapshot(None)
+        self.assertEqual([s["id"] for s in snapshot["sessions"]], ["claude:app"])
+        self.assertEqual([p["id"] for p in snapshot["projects"]], [str(self.app)])
+        self.assertIn("claude:job", self.bridge.sessions)  # kept, only hidden from the list
+
+    def test_chats_started_in_this_app_stay_visible_even_in_hidden_folders(self):
+        self.add("claude:mine", self.job, "app")
+        self.assertEqual([s["id"] for s in self.bridge.snapshot(None)["sessions"]], ["claude:mine"])

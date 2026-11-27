@@ -23,7 +23,7 @@ from collaboration import Teams, tools_for
 from claude_runtime import ClaudeChat
 
 PROTOCOL = 3
-BRIDGE_VERSION = "0.17.2"
+BRIDGE_VERSION = "0.18.1"
 MAX_WIRE = 2 * 1024 * 1024
 MAX_TEXT = 12000
 MESSAGE_PREVIEW = 4000
@@ -340,6 +340,21 @@ class Bridge:
             raise BridgeError("不能将凭据配置目录作为项目。")
         return path
 
+    def agent_workspace(self, cwd):
+        """True for folders other tools keep for themselves, e.g. ~/.agent-ops/work/job-1.
+
+        Any hidden folder below the work root counts. Sessions imported from there are
+        noise in a project list; nothing is deleted, they are just not shown or imported.
+        """
+        try:
+            parts = Path(cwd).relative_to(self.root).parts
+        except ValueError:
+            return False
+        return any(part.startswith(".") and part not in {".", ".."} for part in parts)
+
+    def hidden_import(self, session):
+        return session.get("origin") in {"claude", "codex"} and self.agent_workspace(session.get("cwd", ""))
+
     AGENT_DIRECTORIES = (".claude", ".codex", ".worktrees", ".cursor", ".git", ".aider")
 
     def project_root(self, cwd):
@@ -417,8 +432,9 @@ class Bridge:
         with self.lock:
             if identifier in self.sessions:
                 self.update_writer_occupancy(self.sessions[identifier])
+            visible = (s for s in self.sessions.values() if not self.hidden_import(s))
             summaries = [{key: s.get(key) for key in ("id", "title", "cwd", "status", "updatedAt", "origin", "model", "agent", "mode", "collaborationRunId", "collaborationTaskId", "completedTurnId", "pinned", "archived")}
-                         for s in sorted(self.sessions.values(), key=lambda s: s["updatedAt"], reverse=True)[:1000]]
+                         for s in sorted(visible, key=lambda s: s["updatedAt"], reverse=True)[:1000]]
             projects = dict(self.projects)
             for summary in summaries:
                 if not summary.get("collaborationRunId"):
@@ -494,6 +510,8 @@ class Bridge:
             except (BridgeError, OSError, ValueError):
                 skipped += 1
                 continue
+            if self.agent_workspace(str(path)):
+                continue  # another tool's private working folder
             identifier = thread["id"]
             identifier = next((s["id"] for s in self.sessions.values()
                                if s.get("remoteThreadId") == identifier), identifier)

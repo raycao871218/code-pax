@@ -302,6 +302,7 @@ class ClaudeChat:
     def __init__(self, bridge):
         self.bridge = bridge
         self.turns = {}
+        self.ignored = {}  # transcript path -> (size, counts as skipped); not re-parsed until it grows
         self.catalogs = {}
         self.catalog_lock = threading.Lock()
 
@@ -418,6 +419,9 @@ class ClaudeChat:
                 refresh = known is not None and not known.get("turnId") and known.get("claudeFileSize") != size
                 if known is not None and not refresh:
                     continue
+            if known is None and self.ignored.get(path, (None,))[0] == size:
+                skipped += self.ignored[path][1]
+                continue
             if size > IMPORT_MAX_BYTES or parsed >= IMPORT_BATCH:
                 if known is None:
                     skipped += 1
@@ -429,7 +433,11 @@ class ClaudeChat:
             except Exception:  # unreadable file, or a cwd outside the allowed root
                 project = None
             if project is None:
+                self.ignored[path] = (size, 1)
                 skipped += 1
+                continue
+            if bridge.agent_workspace(str(project)):
+                self.ignored[path] = (size, 0)  # e.g. ~/.agent-ops/work/job-1: another tool's folder
                 continue
             with bridge.lock:
                 known = bridge.sessions.get(identifier)

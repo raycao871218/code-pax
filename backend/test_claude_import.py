@@ -143,6 +143,16 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(self.catalog()["imported"], 0)
         self.assertEqual(self.bridge.sessions["claude:" + SESSION]["messages"], [{"id": "keep"}])
 
+    def test_other_tools_hidden_workspaces_are_not_imported_or_reparsed(self):
+        job = self.root / ".agent-ops" / "work" / "job-1"
+        job.mkdir(parents=True)
+        self.write(job)
+        self.assertEqual(self.catalog(), {"nextCursor": None, "imported": 0, "skipped": 0})
+        self.assertNotIn("claude:" + SESSION, self.bridge.sessions)
+        with patch("claude_runtime.parse_transcript") as parse:
+            self.catalog()
+            parse.assert_not_called()  # remembered, so it cannot starve the import batch
+
     def test_status_advertises_import_capability(self):
         self.assertIn("claudeImport", self.bridge.status()["capabilities"])
 
