@@ -241,7 +241,12 @@ class TerminalIntegrationTests(unittest.TestCase):
 
     def test_failed_exit_and_completed_output_survive_daemon_restart(self):
         identifier = self.create("print('SAVED'); raise SystemExit(7)")
-        self.wait_for(lambda: self.bridge.sessions[identifier]["status"] == "failed")
+        # Read under the bridge lock: the exit handler sets the status before it records the
+        # exit code and saves, so an unlocked read can restart before the row is written.
+        def persisted():
+            with self.bridge.lock:
+                return self.bridge.sessions[identifier]["status"] == "failed"
+        self.wait_for(persisted)
         restarted = Bridge(self.state, self.project, rpc_factory=missing_codex)
         try:
             session = restarted.snapshot(identifier)["selected"]
