@@ -6413,6 +6413,237 @@
           }
         }
       }
+    },
+    "在此项目新建会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New session in this project"
+          }
+        }
+      }
+    },
+    "新会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New session"
+          }
+        }
+      }
+    },
+    "关闭新会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close new session"
+          }
+        }
+      }
+    },
+    "使用其他 Agent 新建": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New session with another agent"
+          }
+        }
+      }
+    },
+    "用其他 Agent 新建会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New session with another agent"
+          }
+        }
+      }
+    },
+    "复制路径": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy path"
+          }
+        }
+      }
+    },
+    "要做点什么？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What do you want to work on?"
+          }
+        }
+      }
+    },
+    "%@ 将在这个项目的交互终端中运行。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ will run in an interactive terminal in this project."
+          }
+        }
+      }
+    },
+    "发送第一条消息后创建会话，%@ 会直接在这个项目中工作。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session is created when you send the first message. %@ works directly in this project."
+          }
+        }
+      }
+    },
+    "当前 Agent 不可用，请在 Agents 中检查安装或启动配置。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This agent isn't available. Check its installation or launch settings in Agents."
+          }
+        }
+      }
+    },
+    "添加项目…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add project…"
+          }
+        }
+      }
+    },
+    "切换项目": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch project"
+          }
+        }
+      }
+    },
+    "启动终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start terminal"
+          }
+        }
+      }
+    },
+    "描述任务，发送后创建会话…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describe a task. Sending creates the session…"
+          }
+        }
+      }
+    },
+    "正在创建会话…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating session…"
+          }
+        }
+      }
+    },
+    "选择 Agent 与模型": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose agent and model"
+          }
+        }
+      }
+    },
+    "在终端中运行": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run in terminal"
+          }
+        }
+      }
+    },
+    "仅终端": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal only"
+          }
+        }
+      }
+    },
+    "当前目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current directory"
+          }
+        }
+      }
+    },
+    "在此目录新建会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New session in this directory"
+          }
+        }
+      }
+    },
+    "添加项目并新建会话": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add project and start a session"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
