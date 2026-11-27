@@ -276,8 +276,8 @@ struct WorkspaceView: View {
         }
         .sheet(isPresented: $showUsage) { UsageView(model: model) }
         .sheet(item: $historySession) { session in HistoryBrowser(model: model, sessionID: session.id).appAppearance() }
-        .onAppear { if let path = model.selected?.cwd { expandedProjects.insert(path) } }
-        .onChange(of: model.selected?.cwd) { _, path in if let path { expandedProjects.insert(path) } }
+        .onAppear { if let path = selectedProjectID { expandedProjects.insert(path) } }
+        .onChange(of: selectedProjectID) { _, path in if let path { expandedProjects.insert(path) } }
         .onChange(of: model.projects.map(\.id)) { old, new in
             expandedProjects.formUnion(Set(new).subtracting(old))
         }
@@ -319,6 +319,12 @@ struct WorkspaceView: View {
         }.disabled(!model.isPrepared || !model.supportsSessionManagement || model.isBusy)
         Button("归档聊天", systemImage: "archivebox") { Task { _ = await model.updateSession(session.id, archived: true) } }
             .disabled(!model.isPrepared || !model.supportsSessionManagement || model.isBusy || ["inProgress", "starting", "waiting", "externalActive", "externalOccupied", "unknown"].contains(session.status))
+    }
+
+    /// The sidebar group of the selected chat. The bridge groups by project root, which can
+    /// differ from the session's own working directory (worktrees, subfolders).
+    private var selectedProjectID: String? {
+        model.sessions.first(where: { $0.id == model.selectedID })?.cwd ?? model.selected?.cwd
     }
 
     private var readingSessionID: String? {

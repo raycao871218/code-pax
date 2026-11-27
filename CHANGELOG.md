@@ -4,6 +4,8 @@
 
 ## 未发布
 
+- 侧栏项目不再为 Agent 自建的目录单独成组：git worktree、`.claude` / `.codex` / `.worktrees` 等 Agent 目录和项目子目录会归入所属仓库；手动添加的项目始终优先。
+
 - 新增导入外部 Claude Code 会话：同步时读取服务器上的 Claude 会话记录，按项目显示并可直接用 `--resume` 继续；最近仍在写入的会话只读保护。
 - 新增 bridge 能力 `claudeImport` 与 `claudeCatalog` 动作；旧后台不受影响。
 
