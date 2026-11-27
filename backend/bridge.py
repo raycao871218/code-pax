@@ -295,6 +295,7 @@ class Bridge:
         self.mutations = threading.Lock()
         self.sessions = self.store.load()
         self.projects = self.store.load_projects()
+        self._roots = {}
         self.model_catalog = []
         self.models_updated_at = 0
         self.account_usage = None
@@ -339,6 +340,55 @@ class Bridge:
             raise BridgeError("不能将凭据配置目录作为项目。")
         return path
 
+    AGENT_DIRECTORIES = (".claude", ".codex", ".worktrees", ".cursor", ".git", ".aider")
+
+    def project_root(self, cwd):
+        """Map a session's working directory to the project it belongs to.
+
+        Agents create worktrees and work in subfolders; listing each as its own project
+        floods the sidebar. Explicitly added projects always win, then agent-internal
+        folders and git worktrees collapse onto their repository, then subfolders onto
+        the repository root. Anything unrecognised is left alone.
+        """
+        cached = self._roots.get(cwd)
+        if cached and time.time() - cached[1] < 60:
+            return cached[0]
+        result = cwd
+        try:
+            path = Path(cwd)
+            explicit = [Path(p) for p in self.projects if path == Path(p) or path.is_relative_to(Path(p))]
+            if explicit:
+                result = str(max(explicit, key=lambda p: len(p.parts)))
+            else:
+                for index, part in enumerate(path.parts):
+                    if part in self.AGENT_DIRECTORIES and index > 0:
+                        path = Path(*path.parts[:index])  # e.g. repo/.claude/worktrees/x -> repo
+                        break
+                result = str(self.repository_root(path) or path)
+        except (OSError, ValueError):
+            pass
+        if result != cwd and not Path(result).is_relative_to(self.root):
+            result = cwd
+        self._roots[cwd] = (result, time.time())
+        return result
+
+    def repository_root(self, path):
+        for candidate in [path, *path.parents]:
+            if candidate == self.root.parent:
+                break
+            marker = candidate / ".git"
+            if marker.is_dir():
+                return candidate
+            if marker.is_file():
+                try:
+                    text = marker.read_text().strip()
+                except OSError:
+                    return candidate
+                if text.startswith("gitdir:") and "/.git/worktrees/" in text:
+                    return Path(text.removeprefix("gitdir:").strip().split("/.git/worktrees/")[0])
+                return candidate
+        return None
+
     def session(self, identifier):
         if identifier not in self.sessions:
             raise BridgeError("会话不存在，请刷新列表。")
@@ -372,6 +422,8 @@ class Bridge:
             projects = dict(self.projects)
             for summary in summaries:
                 if not summary.get("collaborationRunId"):
+                    # Group by the real project, not by whichever worktree or subfolder an agent used.
+                    summary["cwd"] = self.project_root(summary["cwd"])
                     projects.setdefault(summary["cwd"], Path(summary["cwd"]).name or summary["cwd"])
             selected = None
             if identifier in self.sessions:
