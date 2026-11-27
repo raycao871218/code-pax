@@ -49,11 +49,9 @@ struct WorkspaceView: View {
     @ObservedObject var connection: ConnectionModel
     @StateObject private var model: WorkspaceModel
     @State private var showAgents = ProcessInfo.processInfo.arguments.contains("--preview-agents")
-    @State private var showAgentPicker = ProcessInfo.processInfo.arguments.contains("--preview-agent-picker")
     @State private var showSearch = false
     @State private var projectTerminal = false
-    @State private var addingProject = false
-    @State private var showProjects = false
+    @State private var showAddProject = false
     @State private var clearPendingCreate = false
     @State private var restartBackend = false
     @State private var expandedProjects: Set<String> = []
@@ -94,9 +92,9 @@ struct WorkspaceView: View {
         NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
             List {
                 Section {
-                    Button { showAgents = false; preferredColumn = .detail } label: {
-                        Label("会话", systemImage: "bubble.left")
-                    }.listRowBackground(RoundedRectangle(cornerRadius: 8).fill(!showAgents ? theme.selection : .clear))
+                    Button { showSearch = true; showAgents = false; searchFocused = true } label: {
+                        Label("搜索会话", systemImage: "magnifyingglass")
+                    }
                     Button { showAgents = true; preferredColumn = .detail } label: {
                         Label("Agents", systemImage: "chevron.left.forwardslash.chevron.right")
                     }.listRowBackground(RoundedRectangle(cornerRadius: 8).fill(showAgents ? theme.selection : .clear))
@@ -113,6 +111,7 @@ struct WorkspaceView: View {
                         DisclosureGroup(isExpanded: Binding(get: { expandedProjects.contains(project.id) }, set: {
                             if $0 { expandedProjects.insert(project.id) } else { expandedProjects.remove(project.id) }
                         })) {
+                            if model.draftProject == project.id { draftRow }
                             ForEach(model.sessions(in: project)) { session in
                                 Button { showAgents = false; Task { await model.select(session.id) } } label: {
                                     HStack(spacing: 8) {
@@ -138,26 +137,29 @@ struct WorkspaceView: View {
                                     .contextMenu { sessionActions(session) }
                             }
                         } label: {
-                            HStack {
-                                Label(project.title, systemImage: "folder").font(.subheadline)
+                            HStack(spacing: 6) {
+                                Label(project.title, systemImage: "folder").font(.subheadline).lineLimit(1)
                                 let count = model.unreadSessions.filter { $0.cwd == project.id }.count
                                 if count > 0 {
                                     Text("\(count)").font(.caption2.bold()).foregroundStyle(.white)
                                         .padding(.horizontal, 6).padding(.vertical, 2).background(theme.actionFill, in: Capsule())
                                         .accessibilityLabel("\(count) 个已完成的未读对话")
                                 }
+                                Spacer(minLength: 4)
+                                Button { newSession(in: project.id) } label: {
+                                    Image(systemName: "square.and.pencil").font(.footnote)
+                                        .frame(width: 28, height: 28).contentShape(Rectangle())
+                                }.buttonStyle(.borderless).foregroundStyle(.secondary)
+                                    .accessibilityLabel("在此项目新建会话")
+                                    .disabled(!model.isPrepared || model.isBusy)
                             }
-                        }.contextMenu {
-                            Button("新建会话", systemImage: "square.and.pencil") { Task { await model.browse(project.id); addingProject = false; showProjects = true } }
-                                .disabled(!model.isPrepared || model.isBusy)
-                            Text(project.id)
-                        }
+                        }.contextMenu { projectActions(project) }
                     }
                 } header: {
                     HStack {
                         Text("项目")
                         Spacer()
-                        Button { addingProject = true; showProjects = true } label: { Image(systemName: "plus") }
+                        Button { showAddProject = true } label: { Image(systemName: "folder.badge.plus") }
                             .accessibilityLabel("添加项目").disabled(!model.isPrepared || model.isBusy)
                     }
                 }
@@ -170,8 +172,8 @@ struct WorkspaceView: View {
                     HStack {
                         Text("Code Pax").font(.title3.weight(.semibold))
                         Spacer()
-                        Button { addingProject = false; showProjects = true } label: {
-                            Image(systemName: "plus").frame(width: 36, height: 36)
+                        Button { newSession() } label: {
+                            Image(systemName: "square.and.pencil").frame(width: 36, height: 36)
                         }.accessibilityLabel("新建会话").keyboardShortcut("n", modifiers: .command)
                             .disabled(model.isBusy || !model.isPrepared)
                     }.tint(.primary).padding(.horizontal, 20).padding(.vertical, 14)
@@ -190,7 +192,6 @@ struct WorkspaceView: View {
                                 .disabled(!connection.isConnected)
                             Button("用量与额度", systemImage: "chart.pie") { showUsage = true }
                             Button("已归档会话", systemImage: "archivebox") { showArchived = true }
-                            Button("搜索会话", systemImage: "magnifyingglass") { showSearch = true; searchFocused = true }
                             Divider()
                             Button("设置", systemImage: "gearshape") { showSettings = true }
                         } label: {
@@ -225,16 +226,28 @@ struct WorkspaceView: View {
                 }
                 if projectTerminal && !showAgents {
                     RemoteTerminalScreen(model: connection.terminal, connection: connection,
-                        workingDirectory: model.selected?.cwd, embedded: true)
+                        workingDirectory: model.selected?.cwd ?? model.draftProject, embedded: true)
                 } else if showAgents {
-                    AgentLibraryView(model: model, openTerminal: { showTerminal = true }, startSession: { addingProject = false; showProjects = true })
+                    AgentLibraryView(model: model, openTerminal: { showTerminal = true }, startSession: { newSession() })
                 } else if let session = model.selected {
                     conversation(session).id(session.id)
                         .onAppear { visibleConversationID = session.id }
                         .onDisappear { if visibleConversationID == session.id { visibleConversationID = nil } }
+                } else if let project = model.draftProject {
+                    draftView(project)
                 } else {
-                    ContentUnavailableView("开始一个项目会话", systemImage: "bubble.left.and.bubble.right",
-                        description: Text(LocalizedStringKey(connection.isConnected ? "连接后自动读取服务器历史。在侧栏选择已有对话，或添加项目新建会话。" : "先在“连接”页面登录服务器。")))
+                    ContentUnavailableView {
+                        Label("开始一个项目会话", systemImage: "bubble.left.and.bubble.right")
+                    } description: {
+                        Text(LocalizedStringKey(connection.isConnected ? "连接后自动读取服务器历史。在侧栏选择已有对话，或添加项目新建会话。" : "先在“连接”页面登录服务器。"))
+                    } actions: {
+                        if connection.isConnected {
+                            Button("新建会话") { newSession() }.buttonStyle(.borderedProminent)
+                                .disabled(!model.isPrepared || model.isBusy)
+                            Button("添加项目") { showAddProject = true }
+                                .disabled(!model.isPrepared || model.isBusy)
+                        }
+                    }
                 }
             }
             .background(theme.canvas.ignoresSafeArea())
@@ -250,6 +263,7 @@ struct WorkspaceView: View {
         .background {
             Button("打开项目终端") { showTerminal = true }.keyboardShortcut("t", modifiers: [.command, .shift]).hidden()
             Button("搜索聊天") { showSearch = true; showAgents = false; columnVisibility = .all; preferredColumn = .sidebar; searchFocused = true }.keyboardShortcut("k", modifiers: .command).hidden()
+            Button("添加项目") { showAddProject = true }.keyboardShortcut("n", modifiers: [.command, .shift]).hidden()
         }
         .alert("重命名聊天", isPresented: $showRename) {
             TextField("聊天名称", text: $renameTitle)
@@ -258,9 +272,8 @@ struct WorkspaceView: View {
                 .disabled(!model.isPrepared || model.isBusy || renameTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .sheet(isPresented: $showArchived) { ArchivedChatsView(model: model).appAppearance() }
-        .sheet(isPresented: $showProjects) {
-            ProjectPicker(model: model, addingProject: addingProject, manageAgents: { showProjects = false; showAgents = true },
-                          didCreate: { showAgents = false }).appAppearance()
+        .sheet(isPresented: $showAddProject) {
+            AddProjectSheet(model: model, didChoose: { newSession(in: $0) }).appAppearance()
         }
         .sheet(isPresented: $showCollaboration) {
             CollaborationView(workspace: model) { identifier in
@@ -271,7 +284,7 @@ struct WorkspaceView: View {
         }
         .sheet(isPresented: $showSettings) { workspaceSettings }
         .fullScreenCover(isPresented: $showTerminal) {
-            RemoteTerminalScreen(model: connection.terminal, connection: connection, workingDirectory: model.selected?.cwd)
+            RemoteTerminalScreen(model: connection.terminal, connection: connection, workingDirectory: model.selected?.cwd ?? model.draftProject)
                 .appAppearance()
         }
         .sheet(isPresented: $showUsage) { UsageView(model: model) }
@@ -321,14 +334,14 @@ struct WorkspaceView: View {
             .disabled(!model.isPrepared || !model.supportsSessionManagement || model.isBusy || ["inProgress", "starting", "waiting", "externalActive", "externalOccupied", "unknown"].contains(session.status))
     }
 
-    /// The sidebar group of the selected chat. The bridge groups by project root, which can
-    /// differ from the session's own working directory (worktrees, subfolders).
+    /// The sidebar group of the selected chat or open draft. The bridge groups by project root,
+    /// which can differ from the session's own working directory (worktrees, subfolders).
     private var selectedProjectID: String? {
-        model.sessions.first(where: { $0.id == model.selectedID })?.cwd ?? model.selected?.cwd
+        model.draftProject ?? model.sessions.first(where: { $0.id == model.selectedID })?.cwd ?? model.selected?.cwd
     }
 
     private var readingSessionID: String? {
-        guard scenePhase == .active, isWorkspaceVisible, !showAgents, !showAgentPicker, !projectTerminal, !showTerminal, !showProjects, !showSettings,
+        guard scenePhase == .active, isWorkspaceVisible, !showAgents, !projectTerminal, !showTerminal, !showAddProject, !showSettings,
               !showUsage, !showArchived, !showRename, !showCollaboration, historySession == nil else { return nil }
         return visibleConversationID
     }
@@ -402,39 +415,27 @@ struct WorkspaceView: View {
             } else {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 8) {
-                        if let cwd = model.selected?.cwd { Text(URL(fileURLWithPath: cwd).lastPathComponent).foregroundStyle(.secondary); Text("/").foregroundStyle(.tertiary) }
-                        Text(model.selected?.title ?? L10n.text("工作区")).lineLimit(1)
+                        if let cwd = model.selected?.cwd ?? model.draftProject { Text(URL(fileURLWithPath: cwd).lastPathComponent).foregroundStyle(.secondary); Text("/").foregroundStyle(.tertiary) }
+                        Text(headerTitle).lineLimit(1)
                     }
-                    Text(model.selected?.title ?? L10n.text("工作区")).lineLimit(1)
+                    Text(headerTitle).lineLimit(1)
                 }.font(.subheadline)
             }
             Spacer(minLength: 8)
             if !showAgents {
-                Button { showAgentPicker.toggle() } label: {
-                    HStack(spacing: 5) {
-                        AppText(model.selected?.agentTitle ?? cliAgentTitle(model.newAgent))
-                        Image(systemName: "chevron.down").font(.caption2)
-                    }.font(.subheadline).padding(.horizontal, 10).padding(.vertical, 7)
-                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
-                }.accessibilityLabel("选择 Agent 新建会话")
-                    .popover(isPresented: $showAgentPicker, arrowEdge: .top) { agentPicker }
-                HStack(spacing: 2) {
-                    Button("聊天") {
-                        projectTerminal = false
-                        if model.selected?.isTerminal == true {
-                            let agent = model.selected?.agent ?? "codex"
-                            model.chooseAgent(agent)
-                            addingProject = false; showProjects = true
-                        }
-                    }.padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(!projectTerminal && model.selected?.isTerminal != true ? theme.selection : .clear, in: RoundedRectangle(cornerRadius: 6))
-                        .disabled(model.selected?.isTerminal == true && !AgentSessionSelection.hasChat(model.selected?.agent ?? "codex"))
-                    Button("终端") { projectTerminal = true }
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(projectTerminal || model.selected?.isTerminal == true ? theme.selection : .clear, in: RoundedRectangle(cornerRadius: 6))
-                        .disabled(!connection.isConnected).accessibilityLabel("打开项目终端")
-                }.font(.subheadline)
+                if let session = model.selected {
+                    AppText(session.agentTitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Color.primary.opacity(0.05), in: Capsule())
+                }
+                Button { projectTerminal.toggle() } label: {
+                    Image(systemName: "terminal").frame(width: 32, height: 30)
+                        .background(projectTerminal ? theme.selection : .clear, in: RoundedRectangle(cornerRadius: 6))
+                }.disabled(!connection.isConnected || (model.selected == nil && model.draftProject == nil))
+                    .accessibilityLabel("打开项目终端")
                 Menu {
+                    Button("新建会话", systemImage: "square.and.pencil") { newSession() }
+                        .disabled(!model.isPrepared || model.isBusy)
                     Button("刷新会话", systemImage: "arrow.clockwise") { Task { await model.reloadCurrent() } }.disabled(!model.isPrepared)
                     if let session = model.selected, !session.isTerminal {
                         Button("会话历史", systemImage: "clock") { historySession = session }
@@ -456,29 +457,134 @@ struct WorkspaceView: View {
             .background(theme.canvas)
     }
 
-    private var agentPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("选择 Agent").font(.headline).padding(.horizontal, 12).padding(.vertical, 8)
-            ForEach(["codex", "claude", "gemini", "opencode", "copilot", "custom"], id: \.self) { agent in
-                Button {
-                    model.chooseAgent(agent); showAgentPicker = false
-                    addingProject = false; showProjects = true
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "chevron.left.forwardslash.chevron.right").frame(width: 20)
-                        AppText(cliAgentTitle(agent))
-                        Spacer()
-                        if agent == (model.selected?.agent ?? "codex") { Image(systemName: "checkmark").foregroundStyle(theme.accent) }
-                    }.padding(.horizontal, 12).padding(.vertical, 8).contentShape(Rectangle())
-                        .background(agent == (model.selected?.agent ?? "codex") ? theme.selection : .clear,
-                                    in: RoundedRectangle(cornerRadius: 8))
-                }.buttonStyle(.plain)
+    private var headerTitle: String {
+        model.selected?.title ?? L10n.text(model.isDrafting ? "新会话" : "工作区")
+    }
+
+    /// Opens the new-session composer (no dialog). Without any project, asks for one first.
+    private func newSession(in project: String? = nil, agent: String? = nil) {
+        guard model.isPrepared, !model.isBusy else { return }
+        if model.startDraft(in: project, agent: agent) {
+            showAgents = false
+            projectTerminal = false
+            preferredColumn = .detail
+        } else {
+            showAddProject = true
+        }
+    }
+
+    private var draftRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "square.and.pencil").font(.caption).foregroundStyle(theme.accent)
+            Text("新会话").font(.subheadline).lineLimit(1)
+            Spacer(minLength: 0)
+            Button { Task { await model.closeDraft() } } label: {
+                Image(systemName: "xmark").font(.caption2).frame(width: 22, height: 22).contentShape(Rectangle())
+            }.buttonStyle(.borderless).foregroundStyle(.secondary).accessibilityLabel("关闭新会话")
+        }.padding(.vertical, 4).padding(.horizontal, 6)
+            .background(!showAgents ? theme.selection : .clear, in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+            .onTapGesture { showAgents = false; preferredColumn = .detail }
+    }
+
+    @ViewBuilder
+    private func projectActions(_ project: CodexProject) -> some View {
+        Button("新建会话", systemImage: "square.and.pencil") { newSession(in: project.id) }
+            .disabled(!model.isPrepared || model.isBusy)
+        Menu {
+            ForEach(Self.agentIDs, id: \.self) { agent in
+                Button { newSession(in: project.id, agent: agent) } label: { AppText(cliAgentTitle(agent)) }
             }
-            Divider().padding(.vertical, 6)
-            Button("管理 Agents →") { showAgentPicker = false; showAgents = true }.padding(12).tint(theme.accent)
-            Text("为新会话选择工具")
-                .font(.caption2).foregroundStyle(.secondary).padding(.horizontal, 12).padding(.bottom, 8)
-        }.font(.subheadline).padding(10).frame(width: 260).presentationCompactAdaptation(.popover).appAppearance()
+        } label: { Label("使用其他 Agent 新建", systemImage: "chevron.left.forwardslash.chevron.right") }
+            .disabled(!model.isPrepared || model.isBusy)
+        Button("复制路径", systemImage: "doc.on.doc") { UIPasteboard.general.string = project.id }
+        Text(project.id)
+    }
+
+    static let agentIDs = ["codex", "claude", "gemini", "opencode", "copilot", "custom"]
+
+    /// T3-style empty composer for a project: nothing exists on the server until the first send.
+    private func draftView(_ project: String) -> some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 16) {
+                    if model.newAgent == "claude" && !model.createsTerminal {
+                        ClaudeAvatar(animated: true).frame(width: 64, height: 56)
+                    } else {
+                        Image(systemName: model.createsTerminal ? "terminal" : "bubble.left.and.bubble.right")
+                            .font(.system(size: 34)).foregroundStyle(.secondary)
+                    }
+                    Text("要做点什么？").font(.title2.weight(.semibold))
+                    projectSwitcher(project)
+                    let agent = L10n.text(cliAgentTitle(model.newAgent))
+                    Group {
+                        if model.createsTerminal {
+                            Text("\(agent) 将在这个项目的交互终端中运行。")
+                        } else {
+                            Text("发送第一条消息后创建会话，\(agent) 会直接在这个项目中工作。")
+                        }
+                    }.font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    if model.needsClaudeChatUpgrade {
+                        Text("当前后台不支持 Claude 聊天。更新后台后才能创建；不会改用 Codex。")
+                            .font(.callout).foregroundStyle(.orange).multilineTextAlignment(.center)
+                        Button("更新聊天后台") { Task { await model.prepare() } }
+                            .disabled(model.isBusy || !connection.isConnected)
+                    } else if model.isPrepared && !model.canCreateSession {
+                        Text("当前 Agent 不可用，请在 Agents 中检查安装或启动配置。")
+                            .font(.callout).foregroundStyle(.orange).multilineTextAlignment(.center)
+                        Button("管理 Agents →") { showAgents = true }
+                    }
+                    if model.hasUncertainCreate {
+                        Text("有一次新建会话的结果待确认，请先检查服务器会话。")
+                            .font(.callout).foregroundStyle(.orange).multilineTextAlignment(.center)
+                        HStack {
+                            Button("重试原新建请求") { Task { await model.retryCreate() } }.disabled(model.isBusy)
+                            Button("清除本机记录", role: .destructive) { clearPendingCreate = true }
+                        }
+                    }
+                }.padding(.horizontal, 30).padding(.top, 72).padding(.bottom, 24)
+                    .frame(maxWidth: 820).frame(maxWidth: .infinity)
+            }
+            if model.createsTerminal { terminalLauncher } else { composer(nil) }
+        }
+    }
+
+    private func projectSwitcher(_ project: String) -> some View {
+        Menu {
+            ForEach(model.projects) { item in
+                Button { newSession(in: item.id) } label: {
+                    if item.id == project { Label(item.title, systemImage: "checkmark") } else { Text(item.title) }
+                }
+            }
+            Divider()
+            Button("添加项目…", systemImage: "folder.badge.plus") { showAddProject = true }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "folder")
+                Text(URL(fileURLWithPath: project).lastPathComponent).lineLimit(1)
+                Image(systemName: "chevron.down").font(.caption2)
+            }.font(.subheadline).padding(.horizontal, 12).padding(.vertical, 7)
+                .background(Color.primary.opacity(0.05), in: Capsule())
+        }.tint(.primary).accessibilityLabel("切换项目")
+    }
+
+    private var terminalLauncher: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "terminal").foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                AppText(cliAgentTitle(model.newAgent)).font(.subheadline.weight(.medium))
+                AppText(model.loginNextSession ? "登录终端" : "交互终端").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            modelControls.fixedSize(horizontal: true, vertical: false)
+            Button { Task { await model.startDraftTerminal() } } label: {
+                Label(LocalizedStringKey(model.loginNextSession ? "启动登录终端" : "启动终端"), systemImage: "play.fill")
+            }.buttonStyle(.borderedProminent).tint(theme.accent).disabled(!model.canStartDraftTerminal)
+        }.padding(.horizontal, 14).padding(.vertical, 12)
+            .background(theme.canvas, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(theme.border, lineWidth: 1))
+            .frame(maxWidth: 960).padding(.horizontal, 24).padding(.bottom, 16).padding(.top, 8)
+            .frame(maxWidth: .infinity)
     }
 
     private func conversation(_ session: CodexSession) -> some View {
@@ -553,26 +659,37 @@ struct WorkspaceView: View {
         }
     }
 
-    private func composer(_ session: CodexSession) -> some View {
-        let control = ComposerState.resolve(status: session.status, draft: model.draft.isEmpty && !model.attachments.isEmpty ? "附件" : model.draft, sending: model.isSending, pending: model.hasUncertainSend)
+    /// The message composer. Without a session it is the draft composer: sending creates the
+    /// session first, and attachments become available once the session exists.
+    private func composer(_ session: CodexSession?) -> some View {
+        let isDraft = session == nil
+        let control: ComposerState = session.map {
+            ComposerState.resolve(status: $0.status, draft: model.draft.isEmpty && !model.attachments.isEmpty ? "附件" : model.draft, sending: model.isSending, pending: model.hasUncertainSend)
+        } ?? (model.isBusy || model.isSending ? .sending : .ready)
+        let running = session?.isRunning == true
+        let canSubmit = isDraft ? model.canSubmitDraft : model.canSubmit
         return VStack(alignment: .leading, spacing: 8) {
-            AttachmentTray(model: model)
+            if !isDraft { AttachmentTray(model: model) }
             HStack(alignment: .bottom, spacing: 10) {
-                AttachmentPickerButton(model: model)
-                ComposerTextInput(text: $model.draft, canSubmit: model.canSubmit, canAttach: model.canAddAttachments, receiveAttachments: { model.attachProviders($0) }) {
-                    Task { await model.send() }
+                if !isDraft { AttachmentPickerButton(model: model) }
+                ComposerTextInput(text: $model.draft, canSubmit: canSubmit, canAttach: !isDraft && model.canAddAttachments, receiveAttachments: { model.attachProviders($0) }) {
+                    Task { if isDraft { await model.sendDraft() } else { await model.send() } }
                 }.overlay(alignment: .topLeading) {
                     if model.draft.isEmpty {
-                        Text("描述任务…").foregroundStyle(.tertiary).padding(.top, 6).allowsHitTesting(false)
+                        Text(LocalizedStringKey(isDraft ? "描述任务，发送后创建会话…" : "描述任务…")).foregroundStyle(.tertiary).padding(.top, 6).allowsHitTesting(false)
                     }
                 }.frame(minWidth: 60).layoutPriority(1)
                 modelControls.fixedSize(horizontal: true, vertical: false).padding(.bottom, 10)
                 ComposerActionButton(state: control,
-                    disabled: session.isRunning ? (!connection.isConnected || !model.isPrepared || model.isBusy) : !model.canSubmit) {
-                    Task { if control == .running { await model.stop() } else { await model.send() } }
+                    disabled: running ? (!connection.isConnected || !model.isPrepared || model.isBusy) : !canSubmit) {
+                    Task {
+                        if control == .running { await model.stop() }
+                        else if isDraft { await model.sendDraft() }
+                        else { await model.send() }
+                    }
                 }
             }
-            if model.isBusy && !model.isSending { ProgressView("正在处理请求…").font(.caption) }
+            if model.isBusy && !model.isSending { ProgressView(LocalizedStringKey(isDraft ? "正在创建会话…" : "正在处理请求…")).font(.caption) }
         }.padding(.horizontal, 14).padding(.vertical, 10)
             .background(theme.canvas, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(isDropTargeted ? theme.accent : theme.border, lineWidth: isDropTargeted ? 2 : 1))
@@ -586,16 +703,23 @@ struct WorkspaceView: View {
     }
 
     private var modelControls: some View {
-        ModelMenu(
-            models: model.chatModels, chosen: model.chosenModel,
+        let session = model.selected
+        return ComposerControls(
+            codexModels: model.models, claudeModels: model.claudeModels, chosen: model.chosenModel,
+            agent: session?.agent ?? model.newAgent,
+            isDraft: model.isDrafting && session == nil,
+            terminal: session?.isTerminal ?? model.createsTerminal,
             selectedModel: model.selectedModel, selectedEffort: model.selectedEffort, accessMode: model.accessMode,
             isClaudeChat: model.isClaudeChat, supportsAccessMode: model.supportsAccessMode,
             needsBackendUpdate: model.isClaudeChat && !model.supportsClaudeModels,
-            enabled: (model.supportsCatalog || model.isClaudeChat) && !model.isBusy,
+            enabled: model.isPrepared && !model.isBusy,
             compact: sizeClass != .regular,
-            selectModel: { model.selectedModel = $0; model.modelChanged() },
-            selectEffort: { model.selectedEffort = $0 },
+            selectModel: { model.chooseModel($0, agent: $1) },
+            selectEffort: { model.chooseEffort($0) },
             selectAccess: { model.accessMode = $0; model.accessModeChanged() },
+            chooseTerminal: { model.chooseTerminal(agent: $0) },
+            newSession: { newSession(agent: $0) },
+            manageAgents: { showAgents = true },
             showUsage: { showUsage = true },
             refresh: { Task { await model.loadModels() } },
             updateBackend: { Task { await model.prepare() } }
@@ -613,11 +737,18 @@ struct WorkspaceView: View {
 
 }
 
-/// The model / effort / permission menu. It is compared by value only (closures are ignored),
-/// so the workspace's periodic refreshes cannot rebuild it while the user is choosing.
-private struct ModelMenu: View, Equatable {
-    let models: [CodexModel]
+/// The composer's Agent / model, effort and permission controls, modelled on T3 Code's
+/// provider-model picker: one menu lists every agent's models. A draft can switch agents
+/// freely; an existing session keeps its agent and offers a new session for the others.
+/// It is compared by value only (closures are ignored), so the workspace's periodic
+/// refreshes cannot rebuild the menus while the user is choosing.
+private struct ComposerControls: View, Equatable {
+    let codexModels: [CodexModel]
+    let claudeModels: [CodexModel]
     let chosen: CodexModel?
+    let agent: String
+    let isDraft: Bool
+    let terminal: Bool
     let selectedModel: String
     let selectedEffort: String
     let accessMode: AccessMode
@@ -626,103 +757,164 @@ private struct ModelMenu: View, Equatable {
     let needsBackendUpdate: Bool
     let enabled: Bool
     let compact: Bool
-    let selectModel: (String) -> Void
+    let selectModel: (String, String) -> Void
     let selectEffort: (String) -> Void
     let selectAccess: (AccessMode) -> Void
+    let chooseTerminal: (String) -> Void
+    let newSession: (String) -> Void
+    let manageAgents: () -> Void
     let showUsage: () -> Void
     let refresh: () -> Void
     let updateBackend: () -> Void
 
     static func == (a: Self, b: Self) -> Bool {
-        a.models == b.models && a.chosen == b.chosen && a.selectedModel == b.selectedModel &&
-        a.selectedEffort == b.selectedEffort && a.accessMode == b.accessMode &&
+        a.codexModels == b.codexModels && a.claudeModels == b.claudeModels && a.chosen == b.chosen &&
+        a.agent == b.agent && a.isDraft == b.isDraft && a.terminal == b.terminal &&
+        a.selectedModel == b.selectedModel && a.selectedEffort == b.selectedEffort && a.accessMode == b.accessMode &&
         a.isClaudeChat == b.isClaudeChat && a.supportsAccessMode == b.supportsAccessMode &&
         a.needsBackendUpdate == b.needsBackendUpdate && a.enabled == b.enabled && a.compact == b.compact
     }
 
+    private static let chatAgents = ["codex", "claude"]
+    private static let terminalAgents = ["gemini", "opencode", "copilot", "custom"]
+
+    private var hasEfforts: Bool { !terminal && chosen?.supportedReasoningEfforts.isEmpty == false }
+
     var body: some View {
-        HStack(spacing: 12) {
-            Menu {
-                Picker("模型", selection: Binding(get: { selectedModel }, set: selectModel)) {
-                    Text("沿用会话 / 默认模型").tag("")
-                    if !selectedModel.isEmpty && !models.contains(where: { $0.model == selectedModel }) {
-                        Text(selectedModel).tag(selectedModel)
-                    }
-                    ForEach(models) { Text($0.displayName).tag($0.model) }
-                }
-                if let chosen, !chosen.supportedReasoningEfforts.isEmpty {
-                    Picker("推理强度", selection: Binding(get: { selectedEffort }, set: selectEffort)) {
-                        Text("默认推理强度").tag("")
-                        ForEach(chosen.supportedReasoningEfforts) { AppText(isClaudeChat ? $0.title : $0.reasoningEffort).tag($0.reasoningEffort) }
-                    }
-                }
-                Divider()
-                Picker("下次任务的权限", selection: Binding(get: { accessMode }, set: selectAccess)) {
-                    ForEach(AccessMode.allCases) { mode in Label(LocalizedStringKey(mode.title), systemImage: mode.symbol).tag(mode) }
-                }.disabled(!supportsAccessMode)
-                if !isClaudeChat {
-                    Button("Codex 用量与额度", systemImage: "chart.pie", action: showUsage)
-                }
-                Button("刷新模型与强度", action: refresh)
-                if needsBackendUpdate {
-                    Button("更新聊天后台", action: updateBackend)
-                }
-            } label: {
+        HStack(spacing: 10) {
+            Menu { modelMenu } label: {
                 HStack(spacing: 4) {
-                    if !compact {
-                        AppText((chosen?.displayName ?? (selectedModel.isEmpty ? "默认模型" : selectedModel)) +
-                             (isClaudeChat && !selectedEffort.isEmpty ? " · " + selectedEffort : ""))
-                            .lineLimit(1).frame(maxWidth: 130)
-                    } else { Image(systemName: "slider.horizontal.3") }
+                    if compact { Image(systemName: "slider.horizontal.3") }
+                    else { Text(verbatim: modelTitle).lineLimit(1).frame(maxWidth: 190) }
                     Image(systemName: "chevron.down").font(.caption2)
                 }
-            }.disabled(!enabled)
-        }.font(.caption).tint(.primary)
+            }.accessibilityLabel("选择 Agent 与模型")
+            if !compact && hasEfforts {
+                Menu { effortPicker } label: {
+                    HStack(spacing: 4) {
+                        Text(verbatim: effortTitle).lineLimit(1)
+                        Image(systemName: "chevron.down").font(.caption2)
+                    }
+                }.accessibilityLabel("推理强度")
+            }
+            if !compact && !terminal {
+                Menu { accessPicker } label: {
+                    Label { AppText(accessMode.title) } icon: { Image(systemName: accessMode.symbol) }
+                        .labelStyle(.titleAndIcon)
+                }.accessibilityLabel("下次任务的权限")
+            }
+        }.font(.caption).tint(.primary).disabled(!enabled)
+    }
+
+    private var modelTitle: String {
+        let agentTitle = L10n.text(cliAgentTitle(agent))
+        if terminal { return agentTitle + " · " + L10n.text("终端") }
+        let name = chosen?.displayName ?? (selectedModel.isEmpty ? L10n.text("默认模型") : selectedModel)
+        let effort = compact && isClaudeChat && !selectedEffort.isEmpty ? " · " + selectedEffort : ""
+        return isDraft ? agentTitle + " · " + name + effort : name + effort
+    }
+
+    private var effortTitle: String {
+        guard let effort = chosen?.supportedReasoningEfforts.first(where: { $0.reasoningEffort == selectedEffort }) else {
+            return L10n.text("默认推理强度")
+        }
+        return isClaudeChat ? L10n.text(effort.title) : effort.reasoningEffort
+    }
+
+    @ViewBuilder
+    private var modelMenu: some View {
+        if isDraft {
+            ForEach(Self.chatAgents, id: \.self) { id in
+                Section {
+                    modelButtons(for: id)
+                    Button { chooseTerminal(id) } label: { checkLabel(L10n.text("在终端中运行"), checked: terminal && agent == id) }
+                } header: { AppText(cliAgentTitle(id)) }
+            }
+            Section {
+                ForEach(Self.terminalAgents, id: \.self) { id in
+                    Button { chooseTerminal(id) } label: { checkLabel(L10n.text(cliAgentTitle(id)), checked: agent == id) }
+                }
+            } header: { AppText("仅终端") }
+        } else {
+            if !terminal {
+                Section { modelButtons(for: agent) } header: { AppText(cliAgentTitle(agent)) }
+            }
+            Menu {
+                ForEach(Self.chatAgents + Self.terminalAgents, id: \.self) { id in
+                    Button { newSession(id) } label: { AppText(cliAgentTitle(id)) }
+                }
+            } label: { Label("用其他 Agent 新建会话", systemImage: "square.and.pencil") }
+        }
+        if compact && hasEfforts { effortPicker }
+        if compact && !terminal { accessPicker }
+        Divider()
+        if !terminal && !isClaudeChat && agent == "codex" {
+            Button("Codex 用量与额度", systemImage: "chart.pie", action: showUsage)
+        }
+        if !terminal { Button("刷新模型与强度", systemImage: "arrow.clockwise", action: refresh) }
+        if needsBackendUpdate { Button("更新聊天后台", action: updateBackend) }
+        Button("管理 Agents →", action: manageAgents)
+    }
+
+    @ViewBuilder
+    private func modelButtons(for id: String) -> some View {
+        let models = id == "claude" ? claudeModels : codexModels
+        let active = agent == id && !terminal
+        Button { selectModel("", id) } label: {
+            checkLabel(L10n.text(isDraft ? "默认模型" : "沿用会话 / 默认模型"), checked: active && selectedModel.isEmpty)
+        }
+        if active && !selectedModel.isEmpty && !models.contains(where: { matches($0) }) {
+            Button { selectModel(selectedModel, id) } label: { checkLabel(selectedModel, checked: true) }
+        }
+        ForEach(models) { item in
+            Button { selectModel(item.model, id) } label: { checkLabel(item.displayName, checked: active && matches(item)) }
+        }
+    }
+
+    private func matches(_ item: CodexModel) -> Bool {
+        item.model == selectedModel || item.aliases?.contains(selectedModel) == true
+    }
+
+    @ViewBuilder
+    private func checkLabel(_ title: String, checked: Bool) -> some View {
+        if checked { Label(title, systemImage: "checkmark") } else { Text(verbatim: title) }
+    }
+
+    @ViewBuilder
+    private var effortPicker: some View {
+        if let chosen, !chosen.supportedReasoningEfforts.isEmpty {
+            Picker("推理强度", selection: Binding(get: { selectedEffort }, set: selectEffort)) {
+                Text("默认推理强度").tag("")
+                ForEach(chosen.supportedReasoningEfforts) { AppText(isClaudeChat ? $0.title : $0.reasoningEffort).tag($0.reasoningEffort) }
+            }
+        }
+    }
+
+    private var accessPicker: some View {
+        Picker("下次任务的权限", selection: Binding(get: { accessMode }, set: selectAccess)) {
+            ForEach(AccessMode.allCases) { mode in Label(LocalizedStringKey(mode.title), systemImage: mode.symbol).tag(mode) }
+        }.disabled(!supportsAccessMode)
     }
 }
 
-private struct ProjectPicker: View {
+/// Picks a server directory to add as a project, then opens a new session in it.
+private struct AddProjectSheet: View {
     @ObservedObject var model: WorkspaceModel
-    let addingProject: Bool
-    let manageAgents: () -> Void
-    let didCreate: () -> Void
+    let didChoose: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var manualPath = ""
 
     var body: some View {
         NavigationStack {
             List {
-                if !addingProject {
-                Section("1 · Agent") {
-                    HStack {
-                        AppLabel(cliAgentTitle(model.newAgent), systemImage: model.createsTerminal ? "terminal" : "bubble.left")
-                        Spacer()
-                        AppText(model.loginNextSession ? "登录终端" : model.createsTerminal ? "交互终端" : "原生聊天").font(.caption).foregroundStyle(.secondary)
-                    }
-                    Button("更换 Agent / 编辑启动配置", action: manageAgents)
-                    if model.needsClaudeChatUpgrade {
-                        Text("当前后台不支持 Claude 聊天。更新后台后才能创建；不会改用 Codex。")
-                            .foregroundStyle(.orange)
-                        Button("更新聊天后台") { Task { await model.prepare() } }
-                            .disabled(model.isBusy || !model.connection.isConnected)
-                    }
-                }
-                }
                 if let listing = model.listing {
-                    Section(addingProject ? "项目目录" : "2 · 项目目录") {
+                    Section("当前目录") {
                         Text(listing.path).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-                        if !addingProject {
-                        Button(L10n.text(model.loginNextSession ? "启动登录终端" : "使用 " + cliAgentTitle(model.newAgent) + " 新建会话")) {
-                            Task { if await model.create(cwd: listing.path) { didCreate(); dismiss() } }
-                        }.disabled(model.isBusy || !model.canCreateSession || model.hasUncertainCreate)
-                        }
-                        if addingProject && model.supportsProjects {
-                            Button("添加这个项目") {
-                                Task { if await model.addProject(cwd: listing.path) { dismiss() } }
-                            }.disabled(model.isBusy)
-                        }
+                        Button { Task { await choose(listing.path) } } label: {
+                            Label(LocalizedStringKey(primaryTitle(listing.path)), systemImage: "plus.circle.fill")
+                        }.disabled(model.isBusy || !model.isPrepared)
                         if let parent = listing.parent {
-                            Button("返回上级目录") { Task { await model.browse(parent) } }
+                            Button("返回上级目录", systemImage: "arrow.up") { Task { await model.browse(parent) } }
                         }
                     }
                     Section("子目录") {
@@ -736,6 +928,7 @@ private struct ProjectPicker: View {
                 Section("直接输入目录") {
                     TextField("服务器上的绝对路径", text: $manualPath)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .onSubmit { Task { await model.browse(manualPath) } }
                     Button("打开目录") { Task { await model.browse(manualPath) } }
                         .disabled(manualPath.isEmpty || model.isBusy)
                     Text("默认只允许当前 SSH 用户的 Home 目录及其子目录。")
@@ -743,10 +936,22 @@ private struct ProjectPicker: View {
                 }
                 if let error = model.error { AppText(error).foregroundStyle(.red) }
             }
-            .navigationTitle(LocalizedStringKey(addingProject ? "添加项目" : "新建会话"))
-            .onDisappear { model.loginNextSession = false }
+            .navigationTitle("添加项目")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
         }
+    }
+
+    private func primaryTitle(_ path: String) -> String {
+        if model.projects.contains(where: { $0.id == path }) { return "在此项目新建会话" }
+        return model.supportsProjects ? "添加项目并新建会话" : "在此目录新建会话"
+    }
+
+    private func choose(_ path: String) async {
+        if model.supportsProjects && !model.projects.contains(where: { $0.id == path }) {
+            guard await model.addProject(cwd: path) else { return }
+        }
+        dismiss()
+        didChoose(path)
     }
 }
 

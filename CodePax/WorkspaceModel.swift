@@ -29,6 +29,9 @@ final class WorkspaceModel: ObservableObject {
     @Published private(set) var catalogStatus = ""
     @Published private(set) var selected: CodexSession?
     @Published private(set) var selectedID: String?
+    /// Project of the unsent "new session" composer. Like a T3 Code draft thread, the server
+    /// session is created only when the first message is sent or the terminal is started.
+    @Published private(set) var draftProject: String?
     @Published private(set) var isPrepared = false
     @Published private(set) var isBusy = false
     @Published private(set) var error: String?
@@ -230,7 +233,10 @@ final class WorkspaceModel: ObservableObject {
         #endif
     }
 
-    var isClaudeChat: Bool { selected?.agent == "claude" && selected?.isTerminal == false }
+    var isClaudeChat: Bool {
+        if let selected { return selected.agent == "claude" && !selected.isTerminal }
+        return isDrafting && newAgent == "claude" && !createsTerminal
+    }
     var chatModels: [CodexModel] {
         guard isClaudeChat else { return models }
         return claudeModels
@@ -248,6 +254,118 @@ final class WorkspaceModel: ObservableObject {
         newAgent = agent
         newSessionMode = AgentSessionSelection.hasChat(agent) ? "chat" : "terminal"
         saveAgentPreferences()
+        draftAgentChanged()
+    }
+
+    // MARK: New-session draft
+
+    var isDrafting: Bool { draftProject != nil }
+
+    private func draftSessionKey(_ project: String) -> String { "new:" + project }
+    private func draftModelKey(_ agent: String) -> String { storageKey + ".draftModel." + agent }
+    private var lastDraftProjectKey: String { storageKey + ".lastDraftProject" }
+
+    /// Where a new session opens when no project is named: the current chat's project,
+    /// the open draft, the last project a session was started in, then the first project.
+    var defaultDraftProject: String? {
+        if let current = sessions.first(where: { $0.id == selectedID })?.cwd ?? selected?.cwd ?? draftProject { return current }
+        if let last = preferenceDefaults.string(forKey: lastDraftProjectKey), projects.contains(where: { $0.id == last }) { return last }
+        return projects.first?.id
+    }
+
+    /// Opens the new-session composer for a project without contacting the server.
+    @discardableResult
+    func startDraft(in project: String? = nil, agent: String? = nil) -> Bool {
+        guard let project = project ?? defaultDraftProject else { return false }
+        readingSessionID = nil
+        selectedID = nil; selected = nil
+        draftProject = project
+        preferenceDefaults.set(project, forKey: lastDraftProjectKey)
+        activateDraft(draftSessionKey(project))
+        error = nil
+        if let agent { chooseAgent(agent) } else { draftAgentChanged() }
+        return true
+    }
+
+    /// Restores the model last used with the draft's agent and loads Claude's catalog on demand.
+    private func draftAgentChanged() {
+        guard isDrafting else { return }
+        let saved = preferenceDefaults.dictionary(forKey: draftModelKey(newAgent)) as? [String: String]
+        selectedModel = saved?["model"] ?? configuration(for: newAgent).model
+        selectedEffort = saved?["effort"] ?? ""
+        if isClaudeChat, claudeModels.isEmpty, supportsClaudeModels { Task { await loadModels() } }
+    }
+
+    private func rememberDraftModel() {
+        guard isDrafting, !createsTerminal else { return }
+        preferenceDefaults.set(["model": selectedModel, "effort": selectedEffort], forKey: draftModelKey(newAgent))
+    }
+
+    /// Picks a model in the unified Agent / model menu. A draft may switch to any agent; an
+    /// existing session keeps its agent, so another agent's model opens a new draft instead.
+    func chooseModel(_ model: String, agent: String) {
+        if isDrafting {
+            if agent != newAgent || createsTerminal { chooseAgent(agent) }
+        } else if let selected, agent != (selected.agent ?? "codex") || selected.isTerminal {
+            startDraft(agent: agent)
+        }
+        selectedModel = model
+        selectedEffort = ""
+        rememberDraftModel()
+    }
+
+    func chooseEffort(_ effort: String) {
+        selectedEffort = effort
+        rememberDraftModel()
+    }
+
+    /// Chooses an agent for a new session that runs in its interactive terminal.
+    func chooseTerminal(agent: String) {
+        if !isDrafting { startDraft() }
+        chooseAgent(agent)
+        newSessionMode = "terminal"
+        saveAgentPreferences()
+    }
+
+    var canSubmitDraft: Bool {
+        connection.isConnected && isPrepared && !isBusy && !hasUncertainSend && !hasUncertainCreate &&
+        isDrafting && !createsTerminal && canCreateSession && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var canStartDraftTerminal: Bool {
+        connection.isConnected && isPrepared && !isBusy && !hasUncertainCreate && isDrafting && createsTerminal && canCreateSession
+    }
+
+    /// Creates the session for the draft, then sends its first message with the chosen model.
+    func sendDraft() async {
+        guard let project = draftProject, canSubmitDraft else { return }
+        let text = draft, model = selectedModel, effort = selectedEffort
+        let address = DraftAddress(server: storageKey, session: draftSessionKey(project))
+        rememberDraftModel()
+        guard await create(cwd: project), let identifier = selectedID, selected?.id == identifier else { return }
+        draftStore.save(DraftRecord(), at: address)
+        selectedModel = model
+        selectedEffort = effort
+        draft = text
+        await send()
+    }
+
+    /// Closes the draft (its text stays saved for next time) and returns to the last opened session.
+    func closeDraft() async {
+        guard isDrafting else { return }
+        draftProject = nil
+        loginNextSession = false
+        draftOwner = nil
+        draft = ""
+        if let last = UserDefaults.standard.string(forKey: storageKey + ".selection"),
+           sessions.contains(where: { $0.id == last && $0.archived != true }) {
+            await select(last)
+        }
+    }
+
+    func startDraftTerminal() async {
+        guard let project = draftProject, canStartDraftTerminal else { return }
+        _ = await create(cwd: project)
     }
 
     var needsClaudeChatUpgrade: Bool { newAgent == "claude" && newSessionMode == "chat" && !supportsClaudeChat }
@@ -388,7 +506,7 @@ final class WorkspaceModel: ObservableObject {
     }
 
     var canAddAttachments: Bool {
-        isPrepared && connection.isConnected && supportsAttachments && !isBusy && !isPreparingAttachment &&
+        selected != nil && isPrepared && connection.isConnected && supportsAttachments && !isBusy && !isPreparingAttachment &&
         !hasUncertainSend && selected?.collaborationRunId == nil && attachments.count < AttachmentPolicy.maximumCount
     }
 
@@ -465,8 +583,10 @@ final class WorkspaceModel: ObservableObject {
             supportsSessionManagement = result.capabilities?.contains("manageSessions") == true
             supportsDownloads = result.capabilities?.contains("downloadFiles") == true
             supportsCollaboration = result.capabilities?.contains("collaboration") == true
-            selectedID = UserDefaults.standard.string(forKey: storageKey + ".selection")
-            if let selectedID { activateDraft(selectedID) }
+            if !isDrafting {
+                selectedID = UserDefaults.standard.string(forKey: storageKey + ".selection")
+                if let selectedID { activateDraft(selectedID) }
+            }
             hasUncertainSend = UserDefaults.standard.data(forKey: pendingKey) != nil
             await reconcilePendingSend()
             hasUncertainCreate = try pendingOperations.read(pendingCreateKey) != nil
@@ -582,7 +702,7 @@ final class WorkspaceModel: ObservableObject {
         supportsCollaboration = false
         draftOwner = nil
         nextPrepareAttempt = .distantPast
-        sessions = []; projects = []; models = []; claudeModels = []; supportsClaudeModels = false; supportsClaudeImport = false; selected = nil; selectedID = nil
+        sessions = []; projects = []; models = []; claudeModels = []; supportsClaudeModels = false; supportsClaudeImport = false; selected = nil; selectedID = nil; draftProject = nil
         isPrepared = false; supportsCatalog = false; historyCursor = nil; catalogStatus = ""
         supportsAccessMode = false; supportsSessionManagement = false; supportsDownloads = false
         supportsUsage = false; accountUsage = nil; usageError = nil
@@ -714,6 +834,7 @@ final class WorkspaceModel: ObservableObject {
     func select(_ identifier: String) async {
         let server = storageKey
         readingSessionID = nil
+        if draftProject != nil { draftProject = nil; loginNextSession = false }
         selectedID = identifier
         activateDraft(identifier)
         selected = nil
@@ -776,11 +897,11 @@ final class WorkspaceModel: ObservableObject {
                     body["accessMode"] = .string(self.accessMode.rawValue)
                     if self.newAgent == "claude" {
                         body["agentConfiguration"] = try self.configuration(for: "claude").fields()
-                        let configuredModel = self.configuration(for: "claude").model
+                        let configuredModel = self.isDrafting && !self.selectedModel.isEmpty ? self.selectedModel : self.configuration(for: "claude").model
                         if !configuredModel.isEmpty { body["model"] = .string(configuredModel) }
                     } else {
                         if !self.isClaudeChat { self.addModelSettings(to: &body) }
-                        if let model = self.agentConfigurations["codex"]?.model, !model.isEmpty { body["model"] = .string(model) }
+                        if body["model"] == nil, let model = self.agentConfigurations["codex"]?.model, !model.isEmpty { body["model"] = .string(model) }
                     }
                 }
                 fields = body

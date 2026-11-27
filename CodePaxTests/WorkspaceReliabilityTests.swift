@@ -41,6 +41,79 @@ final class WorkspaceReliabilityTests: XCTestCase {
         XCTAssertEqual(model.newSessionSelection, AgentSessionSelection(agent: "claude", mode: "chat"))
         XCTAssertFalse(model.loginNextSession)
     }
+    @MainActor
+    func testNewSessionDraftSwitchesAgentsAndRemembersModelsWithoutServerCalls() throws {
+        let suite = "draft-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let connection = ConnectionModel()
+        connection.profile.host = "draft-server.invalid"
+        let model = WorkspaceModel(connection: connection, defaults: defaults)
+        model.connectionChanged()
+
+        // No project to open a draft in: the caller is asked to add one instead.
+        XCTAssertFalse(model.startDraft())
+        XCTAssertFalse(model.isDrafting)
+
+        XCTAssertTrue(model.startDraft(in: "/home/dev/app", agent: "claude"))
+        XCTAssertEqual(model.draftProject, "/home/dev/app")
+        XCTAssertNil(model.selectedID)
+        XCTAssertTrue(model.isClaudeChat)
+        XCTAssertFalse(model.canAddAttachments)
+        XCTAssertEqual(model.defaultDraftProject, "/home/dev/app")
+
+        // Picking another agent's model in the draft switches the agent, keeping chat mode.
+        model.chooseModel("gpt-5.4", agent: "codex")
+        XCTAssertEqual(model.newSessionSelection, AgentSessionSelection(agent: "codex", mode: "chat"))
+        XCTAssertFalse(model.isClaudeChat)
+        XCTAssertEqual(model.selectedModel, "gpt-5.4")
+        model.chooseEffort("high")
+
+        model.chooseModel("claude-opus-4-1", agent: "claude")
+        XCTAssertEqual(model.newAgent, "claude")
+        XCTAssertEqual(model.selectedModel, "claude-opus-4-1")
+        XCTAssertEqual(model.selectedEffort, "")
+
+        // Each agent's last model comes back when switching to it again.
+        model.chooseAgent("codex")
+        XCTAssertEqual(model.selectedModel, "gpt-5.4")
+        XCTAssertEqual(model.selectedEffort, "high")
+
+        model.chooseTerminal(agent: "gemini")
+        XCTAssertTrue(model.createsTerminal)
+        XCTAssertFalse(model.isClaudeChat)
+        XCTAssertFalse(model.canSubmitDraft)
+
+        model.chooseTerminal(agent: "claude")
+        XCTAssertEqual(model.newSessionSelection, AgentSessionSelection(agent: "claude", mode: "terminal"))
+        XCTAssertFalse(model.isClaudeChat)
+    }
+
+    @MainActor
+    func testDraftTextIsKeptPerProjectAndClosingReturnsToNoSelection() async throws {
+        let suite = "draft-text-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let connection = ConnectionModel()
+        connection.profile.host = "draft-text-server.invalid"
+        let model = WorkspaceModel(connection: connection, defaults: defaults)
+        model.connectionChanged()
+
+        model.startDraft(in: "/home/dev/a", agent: "codex")
+        model.draft = "plan the release"
+        model.startDraft(in: "/home/dev/b")
+        XCTAssertEqual(model.draft, "")
+        XCTAssertEqual(model.newAgent, "codex")
+        model.startDraft(in: "/home/dev/a")
+        XCTAssertEqual(model.draft, "plan the release")
+
+        await model.closeDraft()
+        XCTAssertFalse(model.isDrafting)
+        XCTAssertEqual(model.draft, "")
+        model.startDraft(in: "/home/dev/a")
+        XCTAssertEqual(model.draft, "plan the release")
+    }
+
     func testAgentConfigurationParsesEnvironmentAndPreservesValuesAndArguments() throws {
         let config = AgentConfiguration(executable: "/opt/my tools/claude", arguments: "--flag 'two words'",
             model: "chosen-model", environment: "API_KEY=secret=with=equals\nBASE_URL=https://example.invalid/api\n\n",
